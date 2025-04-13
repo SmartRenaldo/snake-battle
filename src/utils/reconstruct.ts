@@ -8,7 +8,7 @@ import { EntityType } from "./constants";
  * Helper function to safely reconstruct a Snake object from state
  * This ensures all methods are available even if they were lost in React state updates
  */
-export function reconstructSnake(snakeData: any): Snake {
+export function reconstructSnake(snakeData: any): Snake | null {
   if (!snakeData) return null;
 
   // Check if the object already has its methods intact
@@ -59,7 +59,7 @@ export function reconstructSnake(snakeData: any): Snake {
 /**
  * Helper function to safely reconstruct an AISnake object from state
  */
-export function reconstructAISnake(aiSnakeData: any): AISnake {
+export function reconstructAISnake(aiSnakeData: any): AISnake | null {
   if (!aiSnakeData) return null;
 
   // Check if the object already has its methods intact

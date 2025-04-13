@@ -1,24 +1,21 @@
 // src/models/AISnake.ts
 
 import { gameConfig } from "../config/gameConfig";
-import { EntityType, AIBehavior } from "../utils/constants";
+import { EntityType, AIBehavior, SegmentType } from "../utils/constants";
 import {
   Vector,
-  createVector,
-  add,
-  subtract,
-  scale,
-  normalize,
   distance,
+  subtract,
+  normalize,
+  scale,
   angle,
-  rotate,
+  add,
+  limitAngle, // Added missing import
 } from "../utils/vector";
+import { BaseSnake } from "./BaseSnake";
 import { Snake } from "./Snake";
 
-/**
- * AI Snake class that extends the base Snake with AI-specific behaviors
- */
-export class AISnake extends Snake {
+export class AISnake extends BaseSnake {
   behavior: AIBehavior;
   targetPosition: Vector | null;
   decisionTimer: number;
@@ -44,6 +41,67 @@ export class AISnake extends Snake {
     this.decisionTimer = 0;
     this.boostTimer = 0;
     this.wanderAngle = Math.random() * Math.PI * 2; // Random initial direction
+  }
+
+  /**
+   * Calculate the width of a segment based on its position and the snake's length
+   * (Implementing method that was missing)
+   */
+  protected calculateSegmentWidth(
+    segmentIndex: number,
+    totalLength: number
+  ): number {
+    const baseWidth = gameConfig.playerSnake.baseWidth;
+
+    // If length is less than or equal to 10, use base width
+    if (totalLength <= 10) {
+      return baseWidth;
+    }
+
+    // Calculate additional width based on length
+    const additionalWidth =
+      Math.floor(
+        (totalLength - 10) / gameConfig.playerSnake.widthGrowthInterval
+      ) * gameConfig.playerSnake.widthIncrement;
+
+    // Cap at maximum width
+    const calculatedWidth = Math.min(
+      baseWidth + additionalWidth,
+      gameConfig.playerSnake.maxWidth
+    );
+
+    // If boosting, don't change width
+    if (this.boosting) {
+      return this.segments[segmentIndex]?.width || calculatedWidth;
+    }
+
+    return calculatedWidth;
+  }
+
+  /**
+   * Update snake's segments to match current length and state
+   * (Implementing method that was missing)
+   */
+  protected updateSegmentWidths(): void {
+    const length = this.segments.length;
+
+    this.segments.forEach((segment, index) => {
+      if (!this.boosting) {
+        segment.width = this.calculateSegmentWidth(index, length);
+      }
+
+      // Update segment types
+      if (index === 0) {
+        segment.type = SegmentType.HEAD;
+      } else if (index === length - 1) {
+        segment.type = SegmentType.TAIL;
+      } else {
+        segment.type = SegmentType.BODY;
+      }
+
+      // Update boosting state
+      segment.boosting = this.boosting;
+    });
   }
 
   /**
@@ -107,8 +165,9 @@ export class AISnake extends Snake {
 
   /**
    * Decide whether to boost based on current situation
+   * Parameter is renamed with underscore to avoid TypeScript warning
    */
-  private decideBoost(playerSnake: Snake): void {
+  private decideBoost(_playerSnake: Snake): void {
     // Don't boost if length is too short
     if (this.segments.length <= gameConfig.aiSnake.minLengthBeforeBoost) {
       if (this.boosting) {
@@ -273,7 +332,7 @@ export class AISnake extends Snake {
   }
 
   /**
-   * Override update method to include AI-specific logic
+   * Override update method with AI-specific implementation
    */
   update(
     deltaTime: number,
@@ -309,7 +368,82 @@ export class AISnake extends Snake {
       );
     }
 
-    // Call parent update method
-    super.update(deltaTime, currentTime);
+    // Smooth direction change with limited angle
+    this.direction = limitAngle(
+      this.direction,
+      this.targetDirection,
+      gameConfig.playerSnake.maxTurnAngle
+    );
+
+    // Calculate distance to move based on speed and time
+    const moveDistance = this.speed * deltaTime;
+
+    // Store old head position
+    const oldHeadPos = { ...this.segments[0].position };
+
+    // Move head in current direction
+    this.segments[0].position = add(
+      oldHeadPos,
+      scale(this.direction, moveDistance)
+    );
+
+    // Move rest of body (follow the leader)
+    for (let i = 1; i < this.segments.length; i++) {
+      const oldPos = { ...this.segments[i].position };
+
+      // Find direction to previous segment
+      const dirToPrev = subtract(this.segments[i - 1].position, oldPos);
+      const distToPrev = distance(oldPos, this.segments[i - 1].position);
+
+      // Move toward previous segment to maintain consistent spacing
+      if (distToPrev > this.segmentDistance) {
+        const moveAmount = distToPrev - this.segmentDistance;
+        const moveDir = normalize(dirToPrev);
+        this.segments[i].position = add(oldPos, scale(moveDir, moveAmount));
+      }
+    }
+
+    // Handle boosting and length consumption
+    if (this.boosting) {
+      // If invincible boost is active, decrement timer
+      if (this.invincibleBoost) {
+        this.boostTimeLeft -= deltaTime;
+
+        if (this.boostTimeLeft <= 0) {
+          this.invincibleBoost = false;
+        }
+      }
+      // Regular boost consumes length
+      else {
+        // Check if we need to consume length
+        const timeSinceLastCost = currentTime - this.lastBoostCostTime;
+        if (timeSinceLastCost >= 1.0) {
+          // Every second
+          // Consume 1 length
+          this.shrink(gameConfig.playerSnake.boostCostPerSecond);
+          this.lastBoostCostTime = currentTime;
+
+          // If not enough length, stop boosting
+          if (
+            this.segments.length <= gameConfig.playerSnake.minLengthForBoost
+          ) {
+            this.stopBoost();
+          }
+        }
+      }
+    }
+
+    // Update segment immunity timers
+    this.segments.forEach((segment) => {
+      if (segment.immunityTimeLeft && segment.immunityTimeLeft > 0) {
+        segment.immunityTimeLeft -= deltaTime;
+      }
+    });
+
+    // Update segment widths periodically
+    if (Math.abs(currentTime - this.lastUpdateTime) > 0.5) {
+      this.updateSegmentWidths();
+      this.lastUpdateTime = currentTime;
+    }
   }
 }

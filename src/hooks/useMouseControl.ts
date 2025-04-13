@@ -1,6 +1,6 @@
 // src/hooks/useMouseControl.ts
 
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { GameState } from "../utils/constants";
 import { Vector } from "../utils/vector";
 
@@ -8,7 +8,7 @@ import { Vector } from "../utils/vector";
  * Hook for handling mouse controls in the game
  */
 export const useMouseControl = (
-  canvasRef: React.RefObject<HTMLCanvasElement>,
+  canvasRef: React.RefObject<HTMLCanvasElement | null>,
   gameState: GameState
 ) => {
   // Mouse position state

@@ -3,19 +3,20 @@
 import React, { useRef, useEffect } from "react";
 import { GameState, FoodType, SegmentType } from "../utils/constants";
 import { gameConfig, SkinType, skins } from "../config/gameConfig";
-import { Snake, SnakeSegment } from "../models/Snake";
 import { Food } from "../models/Food";
+import { AnySnake } from "../types";
+import { SnakeSegment } from "../models/BaseSnake";
 
 interface GameCanvasProps {
   width: number;
   height: number;
-  playerSnake: Snake | null;
-  aiSnakes: Snake[];
+  playerSnake: AnySnake | null;
+  aiSnakes: AnySnake[]; // Accept any snake type
   foods: Food[];
   gameState: GameState;
   score: number;
   highScore: number;
-  canvasRef: React.RefObject<HTMLCanvasElement>;
+  canvasRef: React.RefObject<HTMLCanvasElement | null>;
 }
 
 const GameCanvas: React.FC<GameCanvasProps> = ({
@@ -125,7 +126,12 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   };
 
   // Draw a snake
-  const drawSnake = (ctx: CanvasRenderingContext2D, snake: Snake) => {
+  const drawSnake = (ctx: CanvasRenderingContext2D, snake: AnySnake) => {
+    console.log(
+      `Drawing snake at: (${snake.segments[0].position.x.toFixed(
+        2
+      )}, ${snake.segments[0].position.y.toFixed(2)})`
+    );
     const segments = snake.segments;
 
     // Draw segments from tail to head (so head appears on top)
@@ -334,7 +340,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     ctx: CanvasRenderingContext2D,
     score: number,
     highScore: number,
-    playerSnake: Snake | null
+    playerSnake: AnySnake | null
   ) => {
     // Score display
     ctx.fillStyle = "#FFFFFF";

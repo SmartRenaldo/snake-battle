@@ -1,10 +1,10 @@
 // src/models/Collision.ts
 
-import { EntityType } from "../utils/constants";
-import { Vector, distance, pointToLineDistance } from "../utils/vector";
-import { Snake, SnakeSegment } from "./Snake";
+import { Vector, distance } from "../utils/vector";
+import { Snake } from "./Snake";
 import { Food } from "./Food";
 import { gameConfig } from "../config/gameConfig";
+import { AnySnake } from "../types";
 
 /**
  * Collision result interface
@@ -41,7 +41,9 @@ export class CollisionDetection {
   /**
    * Check for collisions between a snake head and food
    */
-  static checkSnakeFoodCollision(snake: Snake, foods: Food[]): Food | null {
+  static checkSnakeFoodCollision(snake: AnySnake, foods: Food[]): Food | null {
+    if (!snake?.segments?.length) return null;
+
     const head = snake.segments[0];
     const headPos = head.position;
 
@@ -52,9 +54,11 @@ export class CollisionDetection {
         : head.width / 2;
 
     for (const food of foods) {
-      const foodRadius = food.getCurrentRadius
-        ? food.getCurrentRadius()
-        : food.radius;
+      const foodRadius =
+        typeof food.getCurrentRadius === "function"
+          ? food.getCurrentRadius()
+          : food.radius || 5;
+
       const dist = distance(headPos, food.position);
 
       if (dist < headRadius + foodRadius) {
@@ -69,10 +73,12 @@ export class CollisionDetection {
    * Check for collisions between a snake and the walls
    */
   static checkSnakeWallCollision(
-    snake: Snake,
+    snake: AnySnake,
     canvasWidth: number,
     canvasHeight: number
   ): boolean {
+    if (!snake?.segments?.length) return false;
+
     const head = snake.segments[0];
     const headPos = head.position;
 
@@ -95,8 +101,8 @@ export class CollisionDetection {
    * Check for collisions between a snake head and another snake's body
    */
   static checkSnakeSnakeCollision(
-    snake1: Snake,
-    snake2: Snake,
+    snake1: AnySnake,
+    snake2: AnySnake,
     isSelfCollision: boolean = false
   ): { collided: boolean; segmentIndex: number } {
     // Get head of snake1
@@ -111,8 +117,7 @@ export class CollisionDetection {
 
     // Start checking from different segments depending on type of collision
     const startSegment = isSelfCollision
-      ? snake2.headImmunitySegments ||
-        gameConfig.playerSnake.headImmunitySegments // Skip immune segments for self-collision
+      ? gameConfig.playerSnake.headImmunitySegments // Always use config value for immune segments
       : 0; // Check all segments for snake-snake collision
 
     // Check collision with each segment of snake2
@@ -215,8 +220,8 @@ export class CollisionDetection {
    * Detect all collisions in the game
    */
   static detectCollisions(
-    playerSnake: Snake,
-    aiSnakes: Snake[],
+    playerSnake: AnySnake,
+    aiSnakes: AnySnake[],
     foods: Food[],
     canvasWidth: number,
     canvasHeight: number
@@ -368,5 +373,20 @@ export class CollisionDetection {
     immunityDuration: number = gameConfig.playerSnake.selfCollisionImmunityTime
   ): void {
     snake.applyImmunity(segmentIndex, immunityDuration);
+  }
+
+  /**
+   * Check if a segment has immunity
+   */
+  static isSegmentImmune(snake: Snake, segmentIndex: number): boolean {
+    if (typeof snake.isSegmentImmune === "function") {
+      return snake.isSegmentImmune(segmentIndex);
+    }
+
+    // Fallback implementation
+    return (
+      segmentIndex < gameConfig.playerSnake.headImmunitySegments ||
+      (snake.segments[segmentIndex]?.immunityTimeLeft ?? 0) > 0
+    );
   }
 }

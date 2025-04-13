@@ -1,6 +1,6 @@
 // src/App.tsx
 
-import React, { useState } from "react";
+import { useState } from "react";
 import Game from "./Game";
 import { SkinType, skins } from "./config/gameConfig";
 
@@ -61,7 +61,7 @@ function App() {
           padding: "1rem",
         }}
       >
-        <Game />
+        <Game selectedSkin={selectedSkin} />
       </main>
 
       <footer

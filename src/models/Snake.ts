@@ -4,50 +4,17 @@ import { gameConfig } from "../config/gameConfig";
 import { EntityType, SegmentType } from "../utils/constants";
 import {
   Vector,
-  createVector,
   add,
   subtract,
   scale,
   normalize,
   distance,
-  angle,
   limitAngle,
 } from "../utils/vector";
 import { SkinType } from "../config/gameConfig";
+import { BaseSnake } from "./BaseSnake";
 
-/**
- * Interface for a snake segment
- */
-export interface SnakeSegment {
-  position: Vector;
-  width: number;
-  type: SegmentType;
-  immunityTimeLeft?: number;
-  boosting: boolean;
-}
-
-/**
- * Main Snake class for player-controlled snake
- */
-export class Snake {
-  id: string;
-  segments: SnakeSegment[];
-  direction: Vector;
-  targetDirection: Vector;
-  speed: number;
-  baseSpeed: number;
-  boostSpeed: number;
-  boosting: boolean;
-  boostTimeLeft: number;
-  invincibleBoost: boolean;
-  lastBoostCostTime: number;
-  points: number;
-  alive: boolean;
-  skin: SkinType;
-  entityType: EntityType;
-  segmentDistance: number;
-  lastUpdateTime: number;
-
+export class Snake extends BaseSnake {
   constructor(
     id: string,
     startPosition: Vector,
@@ -55,32 +22,21 @@ export class Snake {
     skin: SkinType = "default",
     entityType: EntityType = EntityType.PLAYER
   ) {
-    this.id = id;
-    this.segments = [];
-    this.direction = createVector(1, 0); // Start moving right
-    this.targetDirection = createVector(1, 0);
+    super(id, startPosition, initialLength, skin, entityType);
+
+    // Initialize snake with default values
     this.baseSpeed = gameConfig.playerSnake.baseSpeed;
     this.boostSpeed = gameConfig.playerSnake.boostSpeed;
     this.speed = this.baseSpeed;
-    this.boosting = false;
-    this.boostTimeLeft = 0;
-    this.invincibleBoost = false;
-    this.lastBoostCostTime = 0;
-    this.points = 0;
-    this.alive = true;
-    this.skin = skin;
-    this.entityType = entityType;
-    this.segmentDistance = gameConfig.playerSnake.baseWidth;
-    this.lastUpdateTime = 0;
-
-    // Initialize snake segments
-    this.initializeSegments(startPosition, initialLength);
   }
 
   /**
    * Initialize segments for a new snake
    */
-  private initializeSegments(startPosition: Vector, length: number): void {
+  protected initializeSegments(startPosition: Vector, length: number): void {
+    // Clear any existing segments
+    this.segments = [];
+
     // Create head
     this.segments.push({
       position: { ...startPosition },
@@ -101,12 +57,18 @@ export class Snake {
         boosting: false,
       });
     }
+
+    console.log(
+      `Snake initialized with ${length} segments at (${startPosition.x.toFixed(
+        2
+      )}, ${startPosition.y.toFixed(2)})`
+    );
   }
 
   /**
    * Calculate the width of a segment based on its position and the snake's length
    */
-  private calculateSegmentWidth(
+  protected calculateSegmentWidth(
     segmentIndex: number,
     totalLength: number
   ): number {
@@ -140,7 +102,7 @@ export class Snake {
   /**
    * Update snake's segments to match current length and state
    */
-  private updateSegmentWidths(): void {
+  protected updateSegmentWidths(): void {
     const length = this.segments.length;
 
     this.segments.forEach((segment, index) => {
@@ -172,12 +134,20 @@ export class Snake {
     const headPosition = this.segments[0].position;
     const directionToTarget = subtract(targetPosition, headPosition);
 
-    // Only update if there's a significant direction
-    if (
-      Math.abs(directionToTarget.x) > 0.01 ||
-      Math.abs(directionToTarget.y) > 0.01
-    ) {
-      this.targetDirection = normalize(directionToTarget);
+    // Calculate distance to target
+    const distanceToTarget = Math.sqrt(
+      directionToTarget.x * directionToTarget.x +
+        directionToTarget.y * directionToTarget.y
+    );
+
+    // Only update if there's a significant direction and distance
+    if (distanceToTarget > 1.0) {
+      // Normalize the direction vector
+      this.targetDirection = {
+        x: directionToTarget.x / distanceToTarget,
+        y: directionToTarget.y / distanceToTarget,
+      };
+
       console.log(
         `Updated target direction: (${this.targetDirection.x.toFixed(
           2
@@ -297,24 +267,23 @@ export class Snake {
   }
 
   /**
-   * Get the snake's length
+   * Check if a segment has active immunity
    */
-  get length(): number {
-    return this.segments.length;
+  isSegmentImmune(segmentIndex: number): boolean {
+    return (
+      segmentIndex < gameConfig.playerSnake.headImmunitySegments ||
+      (this.segments[segmentIndex]?.immunityTimeLeft ?? 0) > 0
+    );
   }
 
   /**
-   * Get the snake's head position
+   * Get bounding radius for a segment (for collision detection)
    */
-  get headPosition(): Vector {
-    return this.segments[0].position;
-  }
-
-  /**
-   * Get the snake's tail position
-   */
-  get tailPosition(): Vector {
-    return this.segments[this.segments.length - 1].position;
+  getSegmentRadius(segmentIndex: number): number {
+    if (segmentIndex < 0 || segmentIndex >= this.segments.length) {
+      return 0;
+    }
+    return this.segments[segmentIndex].width / 2;
   }
 
   /**
@@ -413,25 +382,20 @@ export class Snake {
       this.updateSegmentWidths();
       this.lastUpdateTime = currentTime;
     }
-  }
-
-  /**
-   * Check if a segment has active immunity
-   */
-  isSegmentImmune(segmentIndex: number): boolean {
-    return (
-      segmentIndex < gameConfig.playerSnake.headImmunitySegments ||
-      (this.segments[segmentIndex]?.immunityTimeLeft ?? 0) > 0
+    console.log(
+      `Snake update - Delta time: ${deltaTime}, Speed: ${this.speed}`
     );
-  }
+    console.log(`Move distance calculated: ${moveDistance}`);
+    console.log(
+      `Head position before: (${oldHeadPos.x.toFixed(
+        2
+      )}, ${oldHeadPos.y.toFixed(2)})`
+    );
 
-  /**
-   * Get bounding radius for a segment (for collision detection)
-   */
-  getSegmentRadius(segmentIndex: number): number {
-    if (segmentIndex < 0 || segmentIndex >= this.segments.length) {
-      return 0;
-    }
-    return this.segments[segmentIndex].width / 2;
+    console.log(
+      `Head position after: (${this.segments[0].position.x.toFixed(
+        2
+      )}, ${this.segments[0].position.y.toFixed(2)})`
+    );
   }
 }

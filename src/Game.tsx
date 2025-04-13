@@ -4,19 +4,20 @@ import React, { useState, useRef, useEffect, useCallback } from "react";
 import { gameConfig } from "./config/gameConfig";
 import { GameState, EntityType, FoodType, KEYS } from "./utils/constants";
 import { Vector, createVector, distance } from "./utils/vector";
-import { reconstructSnake, reconstructAISnake } from "./utils/reconstruct";
 import { Snake } from "./models/Snake";
 import { AISnake } from "./models/AISnake";
 import { Food } from "./models/Food";
 import { CollisionDetection, CollisionType } from "./models/Collision";
+import { ensureSnakeMethods, ensureAISnakeMethods } from "./utils/snakeHelpers";
 import GameCanvas from "./components/GameCanvas";
 import ScoreBoard from "./components/ScoreBoard";
 import GameOverModal from "./components/GameOverModal";
 import ControlsInfo from "./components/ControlsInfo";
 import { useGameLoop } from "./hooks/useGameLoop";
 import { useMouseControl } from "./hooks/useMouseControl";
+import { SkinType } from "./config/gameConfig";
 
-const Game: React.FC = () => {
+const Game: React.FC<{ selectedSkin: SkinType }> = ({ selectedSkin }) => {
   // Game state
   const [gameState, setGameState] = useState<GameState>(GameState.START);
   // Player snake
@@ -55,7 +56,7 @@ const Game: React.FC = () => {
       "player",
       playerStartPos,
       gameConfig.playerSnake.initialLength,
-      "default",
+      selectedSkin,
       EntityType.PLAYER
     );
 
@@ -132,6 +133,9 @@ const Game: React.FC = () => {
   // Generate new AI snake
   const generateNewAISnake = useCallback(() => {
     if (!playerSnake) return;
+    console.log(
+      `Rendering snake at: (${playerSnake.segments[0].position.x}, ${playerSnake.segments[0].position.y})`
+    );
 
     const canvasWidth = gameConfig.canvas.width;
     const canvasHeight = gameConfig.canvas.height;
@@ -162,7 +166,7 @@ const Game: React.FC = () => {
   const handleCollisions = useCallback(
     (
       collisions: any[],
-      activePlayerSnake: Snake = null,
+      activePlayerSnake?: Snake | null,
       activeAISnakes: AISnake[] = []
     ) => {
       // Use the provided reconstructed snake or the one from state
@@ -231,7 +235,6 @@ const Game: React.FC = () => {
             {
               // Player head hits AI body
               const aiSnakeId = collision.entity2.snake.id;
-              const segmentIndex = collision.entity2.segmentIndex;
 
               // Find the actual AI snake instance (either from activeAISnakes or state)
               const aiSnake =
@@ -411,86 +414,69 @@ const Game: React.FC = () => {
       const canvasWidth = gameConfig.canvas.width;
       const canvasHeight = gameConfig.canvas.height;
 
-      // Create a reference to track if changes were made that need a state update
-      let needsPlayerUpdate = false;
-      let needsAIUpdate = false;
-      let needsFoodUpdate = false;
+      // Ensure player snake has methods
+      const activePlayerSnake = ensureSnakeMethods(playerSnake);
 
-      // Important: Reconstruct objects to ensure methods are available
-      // Get a properly constructed player snake with all methods
-      const activePlayerSnake = reconstructSnake(playerSnake);
-
-      // Reconstruct all AI snakes to ensure methods are available
+      // Ensure AI snakes have methods - use type assertions to satisfy TypeScript
       const activeAISnakes = aiSnakes.map((aiSnake) =>
-        reconstructAISnake(aiSnake)
+        ensureAISnakeMethods(aiSnake)
       );
 
       // Update player snake
-      if (activePlayerSnake && typeof activePlayerSnake.update === "function") {
+      if (typeof activePlayerSnake.update === "function") {
         activePlayerSnake.update(deltaTime, time);
-        needsPlayerUpdate = true;
-      } else {
-        console.error("playerSnake or its update method is undefined");
       }
 
-      // 2. Update AI snakes
-      if (activeAISnakes.length > 0) {
-        // Update each AI snake in place
-        activeAISnakes.forEach((aiSnake) => {
-          if (typeof aiSnake.update === "function") {
-            aiSnake.update(
-              deltaTime,
-              time,
-              activePlayerSnake,
-              foods,
-              canvasWidth,
-              canvasHeight
-            );
-            needsAIUpdate = true;
-          } else {
-            console.error("AI Snake update method is undefined");
-          }
-        });
-      }
+      // Update AI snakes
+      activeAISnakes.forEach((aiSnake) => {
+        if (typeof aiSnake.update === "function") {
+          aiSnake.update(
+            deltaTime,
+            time,
+            activePlayerSnake,
+            foods,
+            canvasWidth,
+            canvasHeight
+          );
+        }
+      });
 
-      // 3. Update food
-      if (foods.length > 0) {
-        foods.forEach((food) => {
-          if (typeof food.update === "function") {
-            food.update(deltaTime);
-            needsFoodUpdate = true;
-          }
-        });
-      }
+      // Update food
+      foods.forEach((food) => {
+        if (typeof food.update === "function") {
+          food.update(deltaTime);
+        }
+      });
 
-      // 4. Check collisions
+      // Check collisions - use type assertion to resolve TypeScript error
       const collisions = CollisionDetection.detectCollisions(
         activePlayerSnake,
-        activeAISnakes,
+        // Type assertion to resolve incompatibility between AISnake[] and Snake[]
+        activeAISnakes as unknown as Snake[],
         foods,
         canvasWidth,
         canvasHeight
       );
 
-      // 5. Handle collisions
+      // Handle collisions
       if (collisions.length > 0) {
-        // Pass the reconstructed objects to ensure methods are available
         handleCollisions(collisions, activePlayerSnake, activeAISnakes);
       }
 
-      // 6. Check if player is still alive
-      if (activePlayerSnake && !activePlayerSnake.alive) {
+      // Check if player is still alive
+      if (!activePlayerSnake.alive) {
         endGame();
         return;
       }
 
-      // 7. Maintain minimum food count
+      // Maintain minimum food count
       if (foods.length < gameConfig.food.minFoodCount) {
         const newFoods = Food.generateRandomFood(
           gameConfig.food.minFoodCount - foods.length,
           canvasWidth,
           canvasHeight,
-          [activePlayerSnake, ...activeAISnakes],
+          // Combine player and AI snakes into a single array, with type assertion
+          [activePlayerSnake, ...activeAISnakes] as Snake[],
           foods
         );
         if (newFoods.length > 0) {
@@ -498,34 +484,54 @@ const Game: React.FC = () => {
         }
       }
 
-      // 8. Check if we need to add a new AI snake
-      if (activePlayerSnake) {
-        const playerLength = activePlayerSnake.segments.length;
-        const aiAddThreshold = gameConfig.aiSnake.newAIInterval;
+      // Check if we need to add a new AI snake
+      const playerLength = activePlayerSnake.segments.length;
+      const aiAddThreshold = gameConfig.aiSnake.newAIInterval;
 
-        if (
-          playerLength > 0 &&
-          playerLength % aiAddThreshold === 0 &&
-          playerLength / aiAddThreshold > activeAISnakes.length
-        ) {
-          generateNewAISnake();
-        }
+      if (
+        playerLength > 0 &&
+        playerLength % aiAddThreshold === 0 &&
+        playerLength / aiAddThreshold > activeAISnakes.length
+      ) {
+        generateNewAISnake();
       }
 
-      // Trigger state updates only if needed
-      if (needsPlayerUpdate) {
-        // Store the updated player snake state (will lose methods, but we'll reconstruct next frame)
-        setPlayerSnake({ ...activePlayerSnake });
+      // Update player snake state without losing methods
+      // We can use a different approach than spread operator to avoid losing methods
+      if (activePlayerSnake !== playerSnake) {
+        // When we had to recreate the snake, use the new instance
+        setPlayerSnake(activePlayerSnake);
+      } else {
+        // When using the existing instance, create a shallow copy that preserves the prototype chain
+        // This notifies React that state has changed while keeping methods intact
+        const updatedPlayerSnake = Object.assign(
+          Object.create(Object.getPrototypeOf(activePlayerSnake)),
+          activePlayerSnake
+        );
+        setPlayerSnake(updatedPlayerSnake);
       }
 
-      if (needsAIUpdate) {
-        // Store the updated AI snakes state
+      // Update AI snakes state
+      // Check if any AI snakes were recreated and need updating
+      const aiSnakesChanged = activeAISnakes.some(
+        (ai, i) => ai !== aiSnakes[i]
+      );
+
+      if (aiSnakesChanged) {
+        // Some snakes were recreated, update with new instances
         setAISnakes([...activeAISnakes]);
-      }
-
-      if (needsFoodUpdate) {
-        // Force a re-render with a new array reference
-        setFoods((prevFoods) => [...prevFoods]);
+      } else {
+        // No snakes were recreated, but positions may have changed
+        // Use a technique that triggers React rerender while preserving methods
+        setAISnakes((prev) => {
+          return prev.map((snake, index) => {
+            // Create a shallow copy that preserves the prototype chain
+            return Object.assign(
+              Object.create(Object.getPrototypeOf(snake)),
+              activeAISnakes[index]
+            );
+          });
+        });
       }
     },
     [
@@ -543,42 +549,33 @@ const Game: React.FC = () => {
   useEffect(() => {
     if (gameState !== GameState.PLAYING || !playerSnake) return;
 
-    // Reconstruct player snake to ensure methods are available
-    const activePlayerSnake = reconstructSnake(playerSnake);
+    // Ensure snake has methods
+    const activePlayerSnake = ensureSnakeMethods(playerSnake);
 
-    // Only update direction when mouse is in canvas
-    if (activePlayerSnake && mouseInCanvas) {
-      // Only update if the direction method exists
-      if (typeof activePlayerSnake.updateDirection === "function") {
-        // This mutates the snake object directly - we'll store it in state at the end
-        activePlayerSnake.updateDirection(mousePosition);
-      } else {
-        console.error("updateDirection method is missing on playerSnake");
-      }
+    // Only update the direction if the player snake has methods
+    if (
+      mouseInCanvas &&
+      typeof activePlayerSnake.updateDirection === "function"
+    ) {
+      activePlayerSnake.updateDirection(mousePosition);
     }
 
-    // Handle boost - check if methods exist
+    // Handle boost
     if (leftButtonPressed) {
-      if (
-        typeof activePlayerSnake.startBoost === "function" &&
-        !activePlayerSnake.boosting
-      ) {
-        // Only log when state changes
-        console.log("Activating boost");
+      if (typeof activePlayerSnake.startBoost === "function") {
         activePlayerSnake.startBoost();
       }
     } else {
-      if (
-        activePlayerSnake.boosting &&
-        typeof activePlayerSnake.stopBoost === "function"
-      ) {
-        console.log("Deactivating boost");
+      if (typeof activePlayerSnake.stopBoost === "function") {
         activePlayerSnake.stopBoost();
       }
     }
 
-    // Update the playerSnake state with the modified object
-    // IMPORTANT: No need to force an update here - the game loop will handle it
+    // Only update state if we had to recreate the snake
+    if (activePlayerSnake !== playerSnake) {
+      setPlayerSnake(activePlayerSnake);
+    }
+    // No else clause for state update - game loop handles position updates
   }, [gameState, playerSnake, mousePosition, leftButtonPressed, mouseInCanvas]);
 
   // Handle keyboard inputs
@@ -648,7 +645,7 @@ const Game: React.FC = () => {
   }, [handleCanvasClick]);
 
   // Use game loop hook
-  const { gameTime } = useGameLoop(updateGame, 60, gameState);
+  useGameLoop(updateGame, 60, gameState);
 
   // Show controls button
   const renderControlsButton = () => (
