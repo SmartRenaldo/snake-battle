@@ -14,13 +14,13 @@ export const gameConfig = {
   // Player snake settings
   playerSnake: {
     initialLength: 15,
-    baseSpeed: 100, // pixels per second
-    boostSpeed: 200, // pixels per second when boosting
+    baseSpeed: 200, // pixels per second
+    boostSpeed: 400, // pixels per second when boosting
     boostCostPerSecond: 1, // length segments lost per second when boosting
     minLengthForBoost: 2, // minimum length required to boost
     maxTurnAngle: Math.PI / 20, // maximum turn angle per frame (for smooth turning)
-    baseWidth: 4, // base width in pixels
-    widthGrowthInterval: 20, // add width every X length segments
+    baseWidth: 20, // base width in pixels
+    widthGrowthInterval: 10, // add width every X length segments
     widthIncrement: 2, // pixels to add to width at each interval
     maxWidth: 20, // maximum width in pixels
     selfCollisionImmunityTime: 0.3, // seconds of transparency after self collision
@@ -31,9 +31,9 @@ export const gameConfig = {
   aiSnake: {
     initialCount: 3,
     initialLength: 10,
-    baseSpeed: 90, // slightly slower than player
-    boostSpeed: 180,
-    baseWidth: 3, // base width in pixels
+    baseSpeed: 160, // slightly slower than player
+    boostSpeed: 320,
+    baseWidth: 15, // base width in pixels
     chaseBoostProbability: 0.5, // probability to boost when chasing player
     fleeBoostProbability: 0.3, // probability to boost when fleeing from player
     minLengthBeforeBoost: 5, // AI won't boost if length is below this
@@ -45,8 +45,8 @@ export const gameConfig = {
   food: {
     regularValue: 1, // length segments added
     regularPoints: 10, // score points
-    initialCount: 20, // number of regular food items at start
-    minFoodCount: 15, // minimum food count to maintain
+    initialCount: 100, // number of regular food items at start
+    minFoodCount: 100, // minimum food count to maintain
     aiDropRatio: 0.5, // percentage of AI length dropped as food when killed
   },
 

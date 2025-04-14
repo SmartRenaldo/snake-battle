@@ -272,10 +272,25 @@ const Game: React.FC<GameProps> = ({ selectedSkin = "default" }) => {
 
           case CollisionType.PLAYER_AI_BODY:
             {
-              // Player head hits AI body
-              const aiSnakeId = collision.entity2.snake.id;
+              // Player head hits AI body - PLAYER DIES
+              if (typeof snake.kill === "function") {
+                snake.kill();
+              } else {
+                // Fallback if method is missing
+                snake.alive = false;
+              }
 
-              // Find the actual AI snake instance (either from activeAISnakes or state)
+              // End game immediately
+              endGame();
+            }
+            break;
+
+          case CollisionType.AI_PLAYER_BODY:
+            {
+              // AI head hits player body - AI DIES
+              const aiSnakeId = collision.entity1.id;
+
+              // Find the actual AI snake instance
               const aiSnake =
                 activeAISnakes.find((ai) => ai.id === aiSnakeId) ||
                 aiSnakes.find((ai) => ai.id === aiSnakeId);
@@ -290,10 +305,10 @@ const Game: React.FC<GameProps> = ({ selectedSkin = "default" }) => {
                 aiSnake.alive = false;
               }
 
-              // Add score
+              // Add score - INCREASED POINTS
               setScore((prev) => prev + 200);
 
-              // Generate food from dead AI
+              // Generate more food from dead AI
               const newFoods = Food.generateFoodFromDeadSnake(
                 aiSnake,
                 gameConfig.food.aiDropRatio
@@ -302,18 +317,6 @@ const Game: React.FC<GameProps> = ({ selectedSkin = "default" }) => {
 
               // Remove dead AI
               setAISnakes((prev) => prev.filter((ai) => ai.id !== aiSnake.id));
-            }
-            break;
-
-          case CollisionType.AI_PLAYER_BODY:
-            {
-              // AI head hits player body = game over
-              if (typeof snake.kill === "function") {
-                snake.kill();
-              } else {
-                // Fallback if method is missing
-                snake.alive = false;
-              }
             }
             break;
 

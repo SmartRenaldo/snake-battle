@@ -10,7 +10,8 @@ import {
   scale,
   angle,
   add,
-  limitAngle, // Added missing import
+  limitAngle,
+  magnitude,
 } from "../utils/vector";
 import { BaseSnake } from "./BaseSnake";
 import { Snake } from "./Snake";
@@ -47,22 +48,25 @@ export class AISnake extends BaseSnake {
     // Clear any existing segments
     this.segments = [];
 
+    // Use player snake width configuration since AI doesn't have its own
+    const baseWidth = gameConfig.playerSnake.baseWidth;
+
     // Create head
     this.segments.push({
       position: { ...startPosition },
-      width: gameConfig.aiSnake.baseWidth || gameConfig.playerSnake.baseWidth,
+      width: baseWidth,
       type: SegmentType.HEAD,
       boosting: false,
     });
 
-    // Create body segments (in reverse direction of initial movement)
+    // Create body segments
     for (let i = 1; i < length; i++) {
       this.segments.push({
         position: {
           x: startPosition.x - i * this.segmentDistance,
           y: startPosition.y,
         },
-        width: this.calculateSegmentWidth(i, length),
+        width: baseWidth,
         type: i === length - 1 ? SegmentType.TAIL : SegmentType.BODY,
         boosting: false,
       });
@@ -90,7 +94,7 @@ export class AISnake extends BaseSnake {
       return baseWidth;
     }
 
-    // Calculate additional width based on length
+    // Calculate additional width based on length - same formula as player
     const additionalWidth =
       Math.floor(
         (totalLength - 10) / gameConfig.playerSnake.widthGrowthInterval
@@ -146,7 +150,7 @@ export class AISnake extends BaseSnake {
     canvasHeight: number,
     deltaTime: number
   ): void {
-    if (!this.alive) return;
+    if (!this.alive || !this.segments || this.segments.length === 0) return;
 
     // Decrement timers
     this.decisionTimer -= deltaTime;
@@ -157,28 +161,49 @@ export class AISnake extends BaseSnake {
       // Random decision interval between 0.5 and 1.5 seconds
       this.decisionTimer = 0.5 + Math.random() * 1.0;
 
-      // Decide behavior based on player and AI snake state
-      if (this.shouldChasePlayer(playerSnake)) {
-        this.behavior = AIBehavior.CHASE;
-        this.targetPosition = { ...playerSnake.headPosition };
-      } else if (this.shouldFleeFromPlayer(playerSnake)) {
-        this.behavior = AIBehavior.FLEE;
-        this.targetPosition = { ...playerSnake.headPosition };
-      } else if (foods.length > 0 && Math.random() < 0.7) {
-        this.behavior = AIBehavior.SEEK_FOOD;
-        // Find closest food
-        const closestFood = this.findClosestFood(foods);
-        if (closestFood) {
-          this.targetPosition = { ...closestFood.position };
+      // Check if player segments are initialized
+      if (
+        playerSnake &&
+        playerSnake.segments &&
+        playerSnake.segments.length > 0
+      ) {
+        // Decide behavior based on player and AI snake state
+        if (this.shouldChasePlayer(playerSnake)) {
+          this.behavior = AIBehavior.CHASE;
+          this.targetPosition = { ...playerSnake.headPosition };
+          console.log(`AI ${this.id} CHASING player`);
+        } else if (this.shouldFleeFromPlayer(playerSnake)) {
+          this.behavior = AIBehavior.FLEE;
+          this.targetPosition = { ...playerSnake.headPosition };
+          console.log(`AI ${this.id} FLEEING from player`);
+        } else if (foods.length > 0 && Math.random() < 0.7) {
+          this.behavior = AIBehavior.SEEK_FOOD;
+          // Find closest food
+          const closestFood = this.findClosestFood(foods);
+          if (closestFood) {
+            this.targetPosition = { ...closestFood.position };
+            console.log(`AI ${this.id} seeking FOOD`);
+          }
+        } else {
+          this.behavior = AIBehavior.WANDER;
+          // Update wander angle
+          this.wanderAngle += (Math.random() - 0.5) * Math.PI * 0.5;
+          console.log(`AI ${this.id} WANDERING`);
         }
       } else {
+        // Default to wander if player is not properly initialized
         this.behavior = AIBehavior.WANDER;
-        // Update wander angle
         this.wanderAngle += (Math.random() - 0.5) * Math.PI * 0.5;
       }
 
       // Decide whether to boost
-      this.decideBoost(playerSnake);
+      if (
+        playerSnake &&
+        playerSnake.segments &&
+        playerSnake.segments.length > 0
+      ) {
+        this.decideBoost(playerSnake);
+      }
     }
 
     // Update target position based on behavior
@@ -188,19 +213,14 @@ export class AISnake extends BaseSnake {
     if (this.boostTimer <= 0 && this.boosting) {
       this.stopBoost();
     }
-
-    // Update direction to move toward target
-    if (this.targetPosition) {
-      this.updateDirection(this.targetPosition);
-    }
   }
 
   /**
    * Decide whether to boost based on current situation
    * Parameter is renamed with underscore to avoid TypeScript warning
    */
-  private decideBoost(_playerSnake: Snake): void {
-    // Don't boost if length is too short
+  private decideBoost(playerSnake: Snake): void {
+    // Don't boost if length is too short (risk assessment)
     if (this.segments.length <= gameConfig.aiSnake.minLengthBeforeBoost) {
       if (this.boosting) {
         this.stopBoost();
@@ -208,19 +228,19 @@ export class AISnake extends BaseSnake {
       return;
     }
 
-    // Set boost probability based on behavior
-    let boostProbability = 0;
+    // Implement the exact logic from your pseudocode
+    let shouldBoost = false;
 
-    if (this.behavior === AIBehavior.CHASE) {
-      boostProbability = gameConfig.aiSnake.chaseBoostProbability;
-    } else if (this.behavior === AIBehavior.FLEE) {
-      boostProbability = gameConfig.aiSnake.fleeBoostProbability;
+    if (this.segments.length > playerSnake.segments.length) {
+      // Pursuit tendency (60% chance)
+      shouldBoost = Math.random() < 0.6;
     } else {
-      boostProbability = 0.1; // Low chance to boost in other states
+      // Fleeing tendency (30% chance)
+      shouldBoost = Math.random() < 0.3;
     }
 
-    // Random decision to boost
-    if (Math.random() < boostProbability) {
+    // Apply boost decision
+    if (shouldBoost) {
       this.startBoost();
       // Boost for a random duration between 1-3 seconds
       this.boostTimer = 1 + Math.random() * 2;
@@ -394,7 +414,7 @@ export class AISnake extends BaseSnake {
     canvasWidth: number,
     canvasHeight: number
   ): void {
-    if (!this.alive) return;
+    if (!this.alive || !this.segments || this.segments.length === 0) return;
 
     console.log(`Updating AI snake ID: ${this.id}, behavior: ${this.behavior}`);
 
@@ -418,6 +438,18 @@ export class AISnake extends BaseSnake {
           2
         )}, ${this.targetPosition.y.toFixed(2)})`
       );
+    } // Check if target position is valid before updating direction
+    if (this.targetPosition && this.segments && this.segments.length > 0) {
+      // Calculate direction to target
+      const dirToTarget = subtract(
+        this.targetPosition,
+        this.segments[0].position
+      );
+      const distToTarget = magnitude(dirToTarget);
+
+      if (distToTarget > 0) {
+        this.targetDirection = normalize(dirToTarget);
+      }
     }
 
     // Smooth direction change with limited angle
