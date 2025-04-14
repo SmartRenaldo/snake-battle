@@ -147,12 +147,6 @@ export class Snake extends BaseSnake {
         x: directionToTarget.x / distanceToTarget,
         y: directionToTarget.y / distanceToTarget,
       };
-
-      console.log(
-        `Updated target direction: (${this.targetDirection.x.toFixed(
-          2
-        )}, ${this.targetDirection.y.toFixed(2)})`
-      );
     }
   }
 
@@ -292,17 +286,6 @@ export class Snake extends BaseSnake {
   update(deltaTime: number, currentTime: number): void {
     if (!this.alive) return;
 
-    // Debug log
-    console.log(
-      `Updating snake: direction=(${this.direction.x.toFixed(
-        2
-      )}, ${this.direction.y.toFixed(
-        2
-      )}), pos=(${this.segments[0].position.x.toFixed(
-        2
-      )}, ${this.segments[0].position.y.toFixed(2)})`
-    );
-
     // Smooth direction change with limited angle
     this.direction = limitAngle(
       this.direction,
@@ -312,7 +295,6 @@ export class Snake extends BaseSnake {
 
     // Calculate distance to move based on speed and time
     const moveDistance = this.speed * deltaTime;
-    console.log(`Move distance: ${moveDistance.toFixed(2)} pixels`);
 
     // Store old head position
     const oldHeadPos = { ...this.segments[0].position };
@@ -382,20 +364,5 @@ export class Snake extends BaseSnake {
       this.updateSegmentWidths();
       this.lastUpdateTime = currentTime;
     }
-    console.log(
-      `Snake update - Delta time: ${deltaTime}, Speed: ${this.speed}`
-    );
-    console.log(`Move distance calculated: ${moveDistance}`);
-    console.log(
-      `Head position before: (${oldHeadPos.x.toFixed(
-        2
-      )}, ${oldHeadPos.y.toFixed(2)})`
-    );
-
-    console.log(
-      `Head position after: (${this.segments[0].position.x.toFixed(
-        2
-      )}, ${this.segments[0].position.y.toFixed(2)})`
-    );
   }
 }

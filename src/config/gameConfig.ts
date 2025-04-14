@@ -33,12 +33,14 @@ export const gameConfig = {
     initialLength: 10,
     baseSpeed: 160, // slightly slower than player
     boostSpeed: 320,
-    baseWidth: 15, // base width in pixels
-    chaseBoostProbability: 0.5, // probability to boost when chasing player
-    fleeBoostProbability: 0.3, // probability to boost when fleeing from player
-    minLengthBeforeBoost: 5, // AI won't boost if length is below this
-    newAIInterval: 50, // add new AI every X player length increase
-    lengthRatio: 0.8, // new AI length = player length * this ratio
+    chaseBoostProbability: 0.5,
+    fleeBoostProbability: 0.3,
+    minLengthBeforeBoost: 5,
+    newAIInterval: 50,
+    lengthRatio: 0.8, // Start at 80% of player length
+    minRespawnDelay: 1000, // ms to wait before spawning a new snake
+    maxRespawnDelay: 3000, // maximum delay
+    respawnDistance: 300, // minimum distance from player when spawning
   },
 
   // Food settings

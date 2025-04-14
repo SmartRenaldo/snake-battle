@@ -37,6 +37,8 @@ const Game: React.FC<GameProps> = ({ selectedSkin = "default" }) => {
   const [highScore, setHighScore] = useState<number>(0);
   // Show controls info
   const [showControls, setShowControls] = useState<boolean>(false);
+  const [isGeneratingAI, setIsGeneratingAI] = useState<boolean>(false);
+  const recentlyRemovedSnakes = useRef<Set<string>>(new Set());
 
   // Canvas reference
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -171,34 +173,95 @@ const Game: React.FC<GameProps> = ({ selectedSkin = "default" }) => {
 
   // Generate new AI snake
   const generateNewAISnake = useCallback(() => {
-    if (!playerSnake) return;
-    console.log(
-      `Rendering snake at: (${playerSnake.segments[0].position.x}, ${playerSnake.segments[0].position.y})`
-    );
+    // Check if AI generation is already in progress
+    if (isGeneratingAI || !playerSnake) {
+      return;
+    }
+
+    setIsGeneratingAI(true);
 
     const canvasWidth = gameConfig.canvas.width;
     const canvasHeight = gameConfig.canvas.height;
 
-    // Random position away from player
-    let aiPos: Vector;
-    do {
-      aiPos = createVector(
-        Math.random() * (canvasWidth - 100) + 50,
-        Math.random() * (canvasHeight - 100) + 50
+    try {
+      let aiPos: Vector;
+      let validPosition = false;
+      let attempts = 0;
+      const maxAttempts = 50;
+
+      do {
+        attempts++;
+
+        // Random position within the canvas, avoiding edges
+        const edgeMargin = 100;
+        aiPos = createVector(
+          edgeMargin + Math.random() * (canvasWidth - edgeMargin * 2),
+          edgeMargin + Math.random() * (canvasHeight - edgeMargin * 2)
+        );
+
+        // Check distance from player snake
+        const distanceFromPlayer = playerSnake.headPosition
+          ? distance(aiPos, playerSnake.headPosition)
+          : 1000; // If player snake is not defined, use a large distance
+
+        // Check if the position is too close to other AI snakes
+        const tooCloseToOtherAI = aiSnakes.some((snake) => {
+          return (
+            snake.alive &&
+            snake.headPosition &&
+            distance(aiPos, snake.headPosition) < 150
+          );
+        });
+
+        validPosition = distanceFromPlayer > 300 && !tooCloseToOtherAI;
+      } while (!validPosition && attempts < maxAttempts);
+
+      // If we couldn't find a valid position, use a fallback
+      if (!validPosition) {
+        aiPos = createVector(
+          canvasWidth / 2 + (Math.random() - 0.5) * 400,
+          canvasHeight / 2 + (Math.random() - 0.5) * 400
+        );
+      }
+
+      // Calculate AI snake length based on player snake length
+      const playerLength = playerSnake.segments.length;
+      let aiLength = Math.max(
+        gameConfig.aiSnake.initialLength,
+        Math.floor(playerLength * gameConfig.aiSnake.lengthRatio)
       );
-    } while (distance(aiPos, playerSnake.headPosition) < 300);
 
-    // Calculate AI length based on player length
-    const aiLength = Math.max(
-      gameConfig.aiSnake.initialLength,
-      Math.floor(playerSnake.segments.length * gameConfig.aiSnake.lengthRatio)
-    );
+      // Add some randomness to the length
+      const randomFactor = 0.9 + Math.random() * 0.2;
+      aiLength = Math.floor(aiLength * randomFactor);
 
-    // Create new AI snake
-    const newAI = new AISnake(`ai_${Date.now()}`, aiPos, aiLength);
+      // Create new AI snake
+      const newAI = new AISnake(`ai_${Date.now()}`, aiPos, aiLength);
 
-    // Add to state
-    setAISnakes((prev) => [...prev, newAI]);
+      // Add AI snake to state
+      if (!newAI.segments || newAI.segments.length === 0) {
+        if (typeof newAI.initializeSegments === "function") {
+          newAI.initializeSegments(aiPos, aiLength);
+        }
+      }
+
+      // Make sure the AI snake has segments
+      if (!newAI.segments || newAI.segments.length === 0) {
+        return;
+      }
+
+      // Add AI snake to state
+      setAISnakes((prevSnakes) => {
+        const newSnakes = [...prevSnakes, newAI];
+        return newSnakes;
+      });
+    } catch (error) {
+    } finally {
+      // Till the AI generation is done, set the flag to false
+      setTimeout(() => {
+        setIsGeneratingAI(false);
+      }, 1000);
+    }
   }, [playerSnake]);
 
   // Handle collisions
@@ -272,11 +335,12 @@ const Game: React.FC<GameProps> = ({ selectedSkin = "default" }) => {
 
           case CollisionType.PLAYER_AI_BODY:
             {
-              // Player head hits AI body - PLAYER DIES
+              // Player head collides with AI snake body
+
               if (typeof snake.kill === "function") {
                 snake.kill();
               } else {
-                // Fallback if method is missing
+                // Backup if method is missing
                 snake.alive = false;
               }
 
@@ -295,15 +359,16 @@ const Game: React.FC<GameProps> = ({ selectedSkin = "default" }) => {
                 activeAISnakes.find((ai) => ai.id === aiSnakeId) ||
                 aiSnakes.find((ai) => ai.id === aiSnakeId);
 
-              if (!aiSnake) return;
-
-              // Kill AI snake - safely check if method exists
-              if (typeof aiSnake.kill === "function") {
-                aiSnake.kill();
-              } else {
-                // Fallback if method is missing
-                aiSnake.alive = false;
+              if (
+                !aiSnake ||
+                !aiSnake.alive ||
+                recentlyRemovedSnakes.current.has(aiSnakeId)
+              ) {
+                return;
               }
+
+              // Fallback if method is missing
+              aiSnake.alive = false;
 
               // Add score - INCREASED POINTS
               setScore((prev) => prev + 200);
@@ -315,8 +380,13 @@ const Game: React.FC<GameProps> = ({ selectedSkin = "default" }) => {
               );
               setFoods((prev) => [...prev, ...newFoods]);
 
-              // Remove dead AI
-              setAISnakes((prev) => prev.filter((ai) => ai.id !== aiSnake.id));
+              // Use safe remove function
+              safeRemoveAISnake(aiSnakeId);
+
+              // Avoid duplicate generation
+              const randomDelay = 800 + Math.random() * 400; // 800-1200ms
+              console.log(`安排在 ${randomDelay.toFixed(0)}ms 后生成新的AI蛇`);
+              setTimeout(() => generateNewAISnake(), randomDelay);
             }
             break;
 
@@ -377,8 +447,12 @@ const Game: React.FC<GameProps> = ({ selectedSkin = "default" }) => {
               );
               setFoods((prev) => [...prev, ...newFoods]);
 
-              // Remove dead AI
-              setAISnakes((prev) => prev.filter((ai) => ai.id !== aiSnake.id));
+              // Use safe remove function
+              safeRemoveAISnake(aiSnake.id);
+
+              // Use random delay to generate new AI snake
+              const randomDelay = 800 + Math.random() * 400; // 800-1200ms
+              setTimeout(() => generateNewAISnake(), randomDelay);
             }
             break;
 
@@ -415,10 +489,12 @@ const Game: React.FC<GameProps> = ({ selectedSkin = "default" }) => {
                 );
                 setFoods((prev) => [...prev, ...newFoods]);
 
-                // Remove dead AI
-                setAISnakes((prev) =>
-                  prev.filter((ai) => ai.id !== aiSnake2.id)
-                );
+                // Use safe remove function
+                safeRemoveAISnake(aiSnake2.id);
+
+                // Use random delay to generate new AI snake
+                const randomDelay = 800 + Math.random() * 400;
+                setTimeout(() => generateNewAISnake(), randomDelay);
               } else {
                 // Kill AI snake 1 - safely check if method exists
                 if (typeof aiSnake1.kill === "function") {
@@ -436,9 +512,11 @@ const Game: React.FC<GameProps> = ({ selectedSkin = "default" }) => {
                 setFoods((prev) => [...prev, ...newFoods]);
 
                 // Remove dead AI
-                setAISnakes((prev) =>
-                  prev.filter((ai) => ai.id !== aiSnake1.id)
-                );
+                safeRemoveAISnake(aiSnake1.id);
+
+                // Use random delay to generate new AI snake
+                const randomDelay = 800 + Math.random() * 400;
+                setTimeout(() => generateNewAISnake(), randomDelay);
               }
             }
             break;
@@ -549,20 +627,15 @@ const Game: React.FC<GameProps> = ({ selectedSkin = "default" }) => {
       }
 
       // Update AI snakes state
-      // Check if any AI snakes were recreated and need updating
-      const aiSnakesChanged = activeAISnakes.some(
-        (ai, i) => ai !== aiSnakes[i]
-      );
-
-      if (aiSnakesChanged) {
-        // Some snakes were recreated, update with new instances
-        setAISnakes([...activeAISnakes]);
-      } else {
-        // Use preserveMethods for each snake to maintain methods
-        setAISnakes((prevSnakes) =>
-          prevSnakes.map((_, index) => preserveMethods(activeAISnakes[index]))
+      setAISnakes((prevSnakes) => {
+        // Filter out dead snakes and those that were recently removed
+        const aliveActiveAISnakes = activeAISnakes.filter(
+          (snake) => snake.alive && !recentlyRemovedSnakes.current.has(snake.id)
         );
-      }
+
+        // Use the preserve method utility to create a state-friendly copy while maintaining methods
+        return aliveActiveAISnakes.map((snake) => preserveMethods(snake));
+      });
     },
     [
       gameState,
@@ -574,6 +647,28 @@ const Game: React.FC<GameProps> = ({ selectedSkin = "default" }) => {
       handleCollisions,
     ]
   );
+
+  // Add a new function to safely remove AI snakes
+  const safeRemoveAISnake = useCallback((aiSnakeId: string) => {
+    // Check if the snake is already in the recently removed set
+    if (recentlyRemovedSnakes.current.has(aiSnakeId)) {
+      return;
+    }
+
+    // Record the snake ID in the recently removed set
+    recentlyRemovedSnakes.current.add(aiSnakeId);
+
+    // Remove the snake from the state
+    setAISnakes((prev) => {
+      const newState = prev.filter((ai) => ai.id !== aiSnakeId);
+      return newState;
+    });
+
+    // Remove the snake from the recently removed set after a delay
+    setTimeout(() => {
+      recentlyRemovedSnakes.current.delete(aiSnakeId);
+    }, 2000);
+  }, []);
 
   // Handle player input from mouse
   useEffect(() => {

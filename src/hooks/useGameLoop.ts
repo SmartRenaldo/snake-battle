@@ -45,11 +45,6 @@ export const useGameLoop = (
         let updatesApplied = 0;
         while (accumulatedTimeRef.current >= timeStep && updatesApplied < 3) {
           // Limit max updates per frame
-          console.log(
-            `Game update: time=${gameTime.toFixed(2)}, step=${timeStep.toFixed(
-              3
-            )}`
-          );
           onUpdate(timeStep, gameTime);
           accumulatedTimeRef.current -= timeStep;
           setGameTime((prevTime) => prevTime + timeStep);
@@ -67,7 +62,6 @@ export const useGameLoop = (
   useEffect(() => {
     // Reset time when game state changes to PLAYING
     if (gameState === GameState.PLAYING) {
-      console.log("Game state changed to PLAYING");
       lastFrameTimeRef.current = 0;
       accumulatedTimeRef.current = 0;
     }

@@ -276,25 +276,7 @@ export class CollisionDetection {
     for (const aiSnake of aiSnakes) {
       if (!aiSnake.alive) continue;
 
-      // 4a. Check player head with AI body
-      const playerHeadAICollision = this.checkSnakeSnakeCollision(
-        playerSnake,
-        aiSnake,
-        false
-      );
-      if (playerHeadAICollision.collided) {
-        collisions.push({
-          collided: true,
-          entity1: playerSnake,
-          entity2: {
-            snake: aiSnake,
-            segmentIndex: playerHeadAICollision.segmentIndex,
-          },
-          type: CollisionType.PLAYER_AI_BODY,
-        });
-      }
-
-      // 4b. Check AI head with player body
+      // 4a. Check AI head with player body
       const aiHeadPlayerCollision = this.checkSnakeSnakeCollision(
         aiSnake,
         playerSnake,
@@ -309,6 +291,25 @@ export class CollisionDetection {
             segmentIndex: aiHeadPlayerCollision.segmentIndex,
           },
           type: CollisionType.AI_PLAYER_BODY,
+        });
+        continue;
+      }
+
+      // 4b. Check player head with AI body
+      const playerHeadAICollision = this.checkSnakeSnakeCollision(
+        playerSnake,
+        aiSnake,
+        false
+      );
+      if (playerHeadAICollision.collided) {
+        collisions.push({
+          collided: true,
+          entity1: playerSnake,
+          entity2: {
+            snake: aiSnake,
+            segmentIndex: playerHeadAICollision.segmentIndex,
+          },
+          type: CollisionType.PLAYER_AI_BODY,
         });
       }
 

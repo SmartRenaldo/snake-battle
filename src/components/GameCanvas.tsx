@@ -1,11 +1,17 @@
 // src/components/GameCanvas.tsx
 
 import React, { useRef, useEffect } from "react";
-import { GameState, FoodType, SegmentType } from "../utils/constants";
+import {
+  EntityType,
+  GameState,
+  FoodType,
+  SegmentType,
+} from "../utils/constants";
 import { gameConfig, SkinType, skins } from "../config/gameConfig";
 import { Food } from "../models/Food";
 import { AnySnake } from "../types";
 import { SnakeSegment } from "../models/BaseSnake";
+import { Vector } from "../utils/vector";
 
 interface GameCanvasProps {
   width: number;
@@ -69,7 +75,9 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       foods.forEach((food) => drawFood(ctx, food));
 
       // Draw AI snakes
-      aiSnakes.forEach((snake) => drawSnake(ctx, snake));
+      aiSnakes
+        .filter((snake) => snake.alive)
+        .forEach((snake) => drawSnake(ctx, snake));
 
       // Draw player snake
       if (playerSnake) {
@@ -133,11 +141,6 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       return;
     }
 
-    console.log(
-      `Drawing snake at: (${snake.segments[0].position.x.toFixed(
-        2
-      )}, ${snake.segments[0].position.y.toFixed(2)})`
-    );
     const segments = snake.segments;
 
     // Draw segments from tail to head (so head appears on top)
@@ -206,7 +209,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     }
 
     // Draw length indicator above the snake
-    if (snake.entityType === "player") {
+    if (snake.entityType === EntityType.PLAYER) {
       ctx.fillStyle = "#FFFFFF";
       ctx.font = "12px Arial";
       ctx.textAlign = "center";
@@ -216,6 +219,16 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         headPos.x,
         headPos.y - 20
       );
+    }
+
+    if (snake.entityType === EntityType.AI_SNAKE) {
+      // Check if this is a newly spawned AI snake
+      const timeSinceSpawn = Date.now() - (snake.spawnTime || 0);
+      if (timeSinceSpawn < 1000) {
+        // 1 second spawn animation
+        const pulseSize = 30 + Math.sin(timeSinceSpawn / 100) * 15;
+        drawSpawnEffect(ctx, snake.segments[0].position, pulseSize);
+      }
     }
   };
 
@@ -485,6 +498,28 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     ctx.fillStyle = "#88FF88";
     ctx.font = "24px Arial";
     ctx.fillText("Click to Restart", width / 2, height / 2 + 120);
+  };
+
+  const drawSpawnEffect = (
+    ctx: CanvasRenderingContext2D,
+    position: Vector,
+    radius: number
+  ) => {
+    // Create a pulsing circle effect
+    ctx.beginPath();
+    ctx.arc(position.x, position.y, radius, 0, Math.PI * 2);
+    ctx.fillStyle = "rgba(255, 255, 255, 0.3)";
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.arc(position.x, position.y, radius * 0.7, 0, Math.PI * 2);
+    ctx.fillStyle = "rgba(255, 255, 255, 0.5)";
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.arc(position.x, position.y, radius * 0.4, 0, Math.PI * 2);
+    ctx.fillStyle = "rgba(255, 255, 255, 0.7)";
+    ctx.fill();
   };
 
   return (

@@ -15,6 +15,7 @@ import {
 } from "../utils/vector";
 import { BaseSnake } from "./BaseSnake";
 import { Snake } from "./Snake";
+import { v4 as uuidv4 } from "uuid";
 
 export class AISnake extends BaseSnake {
   behavior: AIBehavior;
@@ -29,7 +30,14 @@ export class AISnake extends BaseSnake {
     initialLength: number = gameConfig.aiSnake.initialLength
   ) {
     // Initialize with AI-specific properties
-    super(id, startPosition, initialLength, "default", EntityType.AI_SNAKE);
+    const uniqueId = `${id}_${uuidv4()}`;
+    super(
+      uniqueId,
+      startPosition,
+      initialLength,
+      "default",
+      EntityType.AI_SNAKE
+    );
 
     // Override speed settings with AI values
     this.baseSpeed = gameConfig.aiSnake.baseSpeed;
@@ -42,38 +50,36 @@ export class AISnake extends BaseSnake {
     this.decisionTimer = 0;
     this.boostTimer = 0;
     this.wanderAngle = Math.random() * Math.PI * 2; // Random initial direction
+    this.spawnTime = Date.now();
   }
 
-  protected initializeSegments(startPosition: Vector, length: number): void {
+  public initializeSegments(startPosition: Vector, length: number): void {
     // Clear any existing segments
     this.segments = [];
 
-    // Use player snake width configuration since AI doesn't have its own
-    const baseWidth = gameConfig.playerSnake.baseWidth;
-
-    // Create head
+    // Create head segment
     this.segments.push({
       position: { ...startPosition },
-      width: baseWidth,
+      width: gameConfig.playerSnake.baseWidth,
       type: SegmentType.HEAD,
       boosting: false,
     });
 
-    // Create body segments
+    // 创建身体段
     for (let i = 1; i < length; i++) {
       this.segments.push({
         position: {
           x: startPosition.x - i * this.segmentDistance,
           y: startPosition.y,
         },
-        width: baseWidth,
+        width: gameConfig.playerSnake.baseWidth,
         type: i === length - 1 ? SegmentType.TAIL : SegmentType.BODY,
         boosting: false,
       });
     }
 
     console.log(
-      `AI Snake initialized with ${length} segments at (${startPosition.x.toFixed(
+      `AI蛇已初始化，有 ${length} 个段，位置：(${startPosition.x.toFixed(
         2
       )}, ${startPosition.y.toFixed(2)})`
     );
@@ -171,24 +177,18 @@ export class AISnake extends BaseSnake {
         if (this.shouldChasePlayer(playerSnake)) {
           this.behavior = AIBehavior.CHASE;
           this.targetPosition = { ...playerSnake.headPosition };
-          console.log(`AI ${this.id} CHASING player`);
         } else if (this.shouldFleeFromPlayer(playerSnake)) {
           this.behavior = AIBehavior.FLEE;
           this.targetPosition = { ...playerSnake.headPosition };
-          console.log(`AI ${this.id} FLEEING from player`);
         } else if (foods.length > 0 && Math.random() < 0.7) {
           this.behavior = AIBehavior.SEEK_FOOD;
           // Find closest food
           const closestFood = this.findClosestFood(foods);
           if (closestFood) {
             this.targetPosition = { ...closestFood.position };
-            console.log(`AI ${this.id} seeking FOOD`);
           }
         } else {
           this.behavior = AIBehavior.WANDER;
-          // Update wander angle
-          this.wanderAngle += (Math.random() - 0.5) * Math.PI * 0.5;
-          console.log(`AI ${this.id} WANDERING`);
         }
       } else {
         // Default to wander if player is not properly initialized
@@ -415,8 +415,6 @@ export class AISnake extends BaseSnake {
     canvasHeight: number
   ): void {
     if (!this.alive || !this.segments || this.segments.length === 0) return;
-
-    console.log(`Updating AI snake ID: ${this.id}, behavior: ${this.behavior}`);
 
     // Update AI behavior
     this.updateBehavior(

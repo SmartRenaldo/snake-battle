@@ -32,6 +32,7 @@ export abstract class BaseSnake {
   segmentDistance: number;
   lastUpdateTime: number;
   stateVersion: number = 0;
+  spawnTime: number;
 
   constructor(
     id: string,
@@ -57,6 +58,7 @@ export abstract class BaseSnake {
     this.entityType = entityType;
     this.segmentDistance = gameConfig.playerSnake.baseWidth;
     this.lastUpdateTime = 0;
+    this.spawnTime = Date.now();
 
     // Initialize segments
     this.initializeSegments(startPosition, initialLength);
