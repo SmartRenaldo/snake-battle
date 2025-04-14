@@ -627,7 +627,7 @@ const Game: React.FC<GameProps> = ({ selectedSkin = "default" }) => {
       }
 
       // Update AI snakes state
-      setAISnakes((prevSnakes) => {
+      setAISnakes((_) => {
         // Filter out dead snakes and those that were recently removed
         const aliveActiveAISnakes = activeAISnakes.filter(
           (snake) => snake.alive && !recentlyRemovedSnakes.current.has(snake.id)

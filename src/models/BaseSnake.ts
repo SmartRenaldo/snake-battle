@@ -65,11 +65,11 @@ export abstract class BaseSnake {
   }
 
   // Common methods
-  protected initializeSegments(startPosition: Vector, length: number): void {
+  protected initializeSegments(_startPosition: Vector, _length: number): void {
     // Implementation
   }
 
-  updateDirection(targetPosition: Vector): void {
+  updateDirection(_targetPosition: Vector): void {
     // Implementation
   }
 
@@ -81,11 +81,11 @@ export abstract class BaseSnake {
     // Implementation
   }
 
-  grow(amount: number = 1): void {
+  grow(_amount: number = 1): void {
     // Implementation
   }
 
-  shrink(amount: number = 1): void {
+  shrink(_amount: number = 1): void {
     // Implementation
   }
 
@@ -95,12 +95,12 @@ export abstract class BaseSnake {
     this.speed = 0;
   }
 
-  isSegmentImmune(segmentIndex: number): boolean {
+  isSegmentImmune(_segmentIndex: number): boolean {
     // Implementation
     return false;
   }
 
-  getSegmentRadius(segmentIndex: number): number {
+  getSegmentRadius(_segmentIndex: number): number {
     // Implementation
     return 0;
   }

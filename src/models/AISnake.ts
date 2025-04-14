@@ -77,12 +77,6 @@ export class AISnake extends BaseSnake {
         boosting: false,
       });
     }
-
-    console.log(
-      `AI蛇已初始化，有 ${length} 个段，位置：(${startPosition.x.toFixed(
-        2
-      )}, ${startPosition.y.toFixed(2)})`
-    );
   }
 
   /**
