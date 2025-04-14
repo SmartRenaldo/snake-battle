@@ -16,8 +16,13 @@ import ControlsInfo from "./components/ControlsInfo";
 import { useGameLoop } from "./hooks/useGameLoop";
 import { useMouseControl } from "./hooks/useMouseControl";
 import { SkinType } from "./config/gameConfig";
+import { preserveMethods } from "./utils/snakeHelpers";
 
-const Game: React.FC<{ selectedSkin: SkinType }> = ({ selectedSkin }) => {
+interface GameProps {
+  selectedSkin?: SkinType;
+}
+
+const Game: React.FC<GameProps> = ({ selectedSkin = "default" }) => {
   // Game state
   const [gameState, setGameState] = useState<GameState>(GameState.START);
   // Player snake
@@ -81,13 +86,30 @@ const Game: React.FC<{ selectedSkin: SkinType }> = ({ selectedSkin }) => {
         );
       } while (distance(aiPos, playerStartPos) < 200);
 
+      // Create and verify the AI snake
       const aiSnake = new AISnake(
         `ai_${i}`,
         aiPos,
         gameConfig.aiSnake.initialLength
       );
 
-      newAISnakes.push(aiSnake);
+      console.log(
+        "gameConfig.aiSnake.initialLength",
+        gameConfig.aiSnake.initialLength
+      );
+      // Debug verification
+      console.log(
+        `AI Snake ${i} created with ${aiSnake.segments.length} segments`
+      );
+
+      // Only add if properly initialized
+      if (aiSnake.segments && aiSnake.segments.length > 0) {
+        newAISnakes.push(aiSnake);
+      } else {
+        console.error(`Failed to initialize AI Snake ${i}`);
+        // Try again with a different position
+        i--;
+      }
     }
 
     // Create initial food
@@ -106,6 +128,23 @@ const Game: React.FC<{ selectedSkin: SkinType }> = ({ selectedSkin }) => {
     setAISnakes(newAISnakes);
     setFoods(newFoods);
     setScore(0);
+
+    // Verify all components are ready
+    const allSnakesReady =
+      newPlayerSnake &&
+      newAISnakes.every((snake) => snake.segments && snake.segments.length > 0);
+
+    // Set game state last to ensure all other state is ready
+    if (allSnakesReady) {
+      console.log("All snakes initialized successfully, starting game");
+      setTimeout(() => {
+        setGameState(GameState.PLAYING);
+        console.log("Game state set to PLAYING");
+      }, 100); // Small delay to ensure all React state updates have been processed
+    } else {
+      console.error("Failed to initialize game components");
+      // Handle initialization failure
+    }
 
     // Set game state last to ensure all other state is ready
     setTimeout(() => {
@@ -502,13 +541,8 @@ const Game: React.FC<{ selectedSkin: SkinType }> = ({ selectedSkin }) => {
         // When we had to recreate the snake, use the new instance
         setPlayerSnake(activePlayerSnake);
       } else {
-        // When using the existing instance, create a shallow copy that preserves the prototype chain
-        // This notifies React that state has changed while keeping methods intact
-        const updatedPlayerSnake = Object.assign(
-          Object.create(Object.getPrototypeOf(activePlayerSnake)),
-          activePlayerSnake
-        );
-        setPlayerSnake(updatedPlayerSnake);
+        // Use the preserveMethods utility to create a state-friendly copy while maintaining methods
+        setPlayerSnake(preserveMethods(activePlayerSnake));
       }
 
       // Update AI snakes state
@@ -521,17 +555,10 @@ const Game: React.FC<{ selectedSkin: SkinType }> = ({ selectedSkin }) => {
         // Some snakes were recreated, update with new instances
         setAISnakes([...activeAISnakes]);
       } else {
-        // No snakes were recreated, but positions may have changed
-        // Use a technique that triggers React rerender while preserving methods
-        setAISnakes((prev) => {
-          return prev.map((snake, index) => {
-            // Create a shallow copy that preserves the prototype chain
-            return Object.assign(
-              Object.create(Object.getPrototypeOf(snake)),
-              activeAISnakes[index]
-            );
-          });
-        });
+        // Use preserveMethods for each snake to maintain methods
+        setAISnakes((prevSnakes) =>
+          prevSnakes.map((_, index) => preserveMethods(activeAISnakes[index]))
+        );
       }
     },
     [

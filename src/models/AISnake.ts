@@ -43,6 +43,38 @@ export class AISnake extends BaseSnake {
     this.wanderAngle = Math.random() * Math.PI * 2; // Random initial direction
   }
 
+  protected initializeSegments(startPosition: Vector, length: number): void {
+    // Clear any existing segments
+    this.segments = [];
+
+    // Create head
+    this.segments.push({
+      position: { ...startPosition },
+      width: gameConfig.aiSnake.baseWidth || gameConfig.playerSnake.baseWidth,
+      type: SegmentType.HEAD,
+      boosting: false,
+    });
+
+    // Create body segments (in reverse direction of initial movement)
+    for (let i = 1; i < length; i++) {
+      this.segments.push({
+        position: {
+          x: startPosition.x - i * this.segmentDistance,
+          y: startPosition.y,
+        },
+        width: this.calculateSegmentWidth(i, length),
+        type: i === length - 1 ? SegmentType.TAIL : SegmentType.BODY,
+        boosting: false,
+      });
+    }
+
+    console.log(
+      `AI Snake initialized with ${length} segments at (${startPosition.x.toFixed(
+        2
+      )}, ${startPosition.y.toFixed(2)})`
+    );
+  }
+
   /**
    * Calculate the width of a segment based on its position and the snake's length
    * (Implementing method that was missing)
@@ -201,7 +233,17 @@ export class AISnake extends BaseSnake {
    * Determine if AI should chase the player
    */
   private shouldChasePlayer(playerSnake: Snake): boolean {
-    // Chase if AI is larger than player
+    // Safety check for segments
+    if (
+      !this.segments ||
+      this.segments.length === 0 ||
+      !playerSnake.segments ||
+      playerSnake.segments.length === 0
+    ) {
+      return false;
+    }
+
+    // Original logic
     return (
       this.segments.length >= playerSnake.segments.length &&
       distance(this.headPosition, playerSnake.headPosition) < 300
@@ -212,7 +254,17 @@ export class AISnake extends BaseSnake {
    * Determine if AI should flee from the player
    */
   private shouldFleeFromPlayer(playerSnake: Snake): boolean {
-    // Flee if player is larger than AI
+    // Safety check for segments
+    if (
+      !this.segments ||
+      this.segments.length === 0 ||
+      !playerSnake.segments ||
+      playerSnake.segments.length === 0
+    ) {
+      return false;
+    }
+
+    // Original logic
     return (
       this.segments.length < playerSnake.segments.length &&
       distance(this.headPosition, playerSnake.headPosition) < 250

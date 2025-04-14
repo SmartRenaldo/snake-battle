@@ -33,6 +33,7 @@ export const gameConfig = {
     initialLength: 10,
     baseSpeed: 90, // slightly slower than player
     boostSpeed: 180,
+    baseWidth: 3, // base width in pixels
     chaseBoostProbability: 0.5, // probability to boost when chasing player
     fleeBoostProbability: 0.3, // probability to boost when fleeing from player
     minLengthBeforeBoost: 5, // AI won't boost if length is below this

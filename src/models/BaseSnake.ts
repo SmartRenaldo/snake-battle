@@ -31,6 +31,7 @@ export abstract class BaseSnake {
   entityType: EntityType;
   segmentDistance: number;
   lastUpdateTime: number;
+  stateVersion: number = 0;
 
   constructor(
     id: string,
@@ -110,10 +111,19 @@ export abstract class BaseSnake {
   }
 
   get headPosition(): Vector {
+    // Defensive check to ensure segments array is not empty
+    if (!this.segments || this.segments.length === 0) {
+      console.warn(`No segments found for snake with ID: ${this.id}`);
+      return { x: 0, y: 0 }; // Return a default position
+    }
     return this.segments[0].position;
   }
 
   get tailPosition(): Vector {
+    if (!this.segments || this.segments.length === 0) {
+      console.warn(`No segments found for snake with ID: ${this.id}`);
+      return { x: 0, y: 0 }; // Return a default position
+    }
     return this.segments[this.segments.length - 1].position;
   }
 

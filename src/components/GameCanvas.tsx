@@ -127,6 +127,12 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
 
   // Draw a snake
   const drawSnake = (ctx: CanvasRenderingContext2D, snake: AnySnake) => {
+    // Add defensive check to prevent errors on undefined segments
+    if (!snake || !snake.segments || snake.segments.length === 0) {
+      console.warn("Attempted to draw invalid snake");
+      return;
+    }
+
     console.log(
       `Drawing snake at: (${snake.segments[0].position.x.toFixed(
         2
