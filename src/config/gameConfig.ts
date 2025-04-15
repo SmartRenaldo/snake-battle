@@ -7,8 +7,8 @@
 export const gameConfig = {
   // Canvas dimensions
   canvas: {
-    width: 1200,
-    height: 800,
+    width: 800,
+    height: 500,
   },
 
   // Player snake settings
@@ -19,10 +19,10 @@ export const gameConfig = {
     boostCostPerSecond: 1, // length segments lost per second when boosting
     minLengthForBoost: 2, // minimum length required to boost
     maxTurnAngle: Math.PI / 20, // maximum turn angle per frame (for smooth turning)
-    baseWidth: 20, // base width in pixels
-    widthGrowthInterval: 10, // add width every X length segments
-    widthIncrement: 2, // pixels to add to width at each interval
-    maxWidth: 20, // maximum width in pixels
+    baseWidth: 25, // base width in pixels
+    widthGrowthInterval: 4, // add width every X length segments
+    widthIncrement: 1, // pixels to add to width at each interval
+    maxWidth: 60, // maximum width in pixels
     selfCollisionImmunityTime: 0.3, // seconds of transparency after self collision
     headImmunitySegments: 5, // number of segments behind head immune to collision
   },
@@ -91,10 +91,10 @@ export const skins = {
     name: "Biological Ripple",
     description:
       "Semi-transparent material with muscle contraction effects during width changes",
-    headColor: "rgba(170, 70, 200, 0.8)",
-    bodyColor: "rgba(140, 50, 170, 0.6)",
+    headColor: "rgba(200, 151, 215, 0.9)",
+    bodyColor: "rgba(180, 64, 218, 0.9)",
     bodyGradient: true,
-    boostColor: "rgba(200, 100, 230, 0.9)",
+    boostColor: "rgba(199, 86, 234, 0.95)",
   },
 };
 

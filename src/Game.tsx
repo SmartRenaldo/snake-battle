@@ -750,10 +750,8 @@ const Game: React.FC<GameProps> = ({ selectedSkin = "default" }) => {
   // Handle canvas click for start/restart
   const handleCanvasClick = useCallback(() => {
     if (gameState === GameState.START) {
-      console.log("Starting game...");
       initGame();
     } else if (gameState === GameState.GAME_OVER) {
-      console.log("Restarting game...");
       resetGame();
     }
   }, [gameState, initGame, resetGame]);
@@ -769,13 +767,67 @@ const Game: React.FC<GameProps> = ({ selectedSkin = "default" }) => {
     };
   }, [handleCanvasClick]);
 
+  // Adjust canvas size on window resize
+  useEffect(() => {
+    const handleResize = () => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+
+      const container = canvas.parentElement;
+      if (!container) return;
+
+      const containerWidth = container.clientWidth;
+
+      // Calculate scale factor
+      const scaleFactor = Math.min(1, containerWidth / gameConfig.canvas.width);
+
+      // Adjust canvas size
+      canvas.style.transformOrigin = "top left";
+      canvas.style.transform = `scale(${scaleFactor})`;
+
+      container.style.height = `${gameConfig.canvas.height * scaleFactor}px`;
+    };
+
+    // Initial resize
+    handleResize();
+
+    // Listen for window resize events
+    window.addEventListener("resize", handleResize);
+
+    return () => {
+      window.removeEventListener("resize", handleResize);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (playerSnake && selectedSkin && playerSnake.skin !== selectedSkin) {
+      // Update player snake skin
+      setPlayerSnake((prevSnake) => {
+        if (!prevSnake) return null;
+
+        // Create a new snake instance with the same properties
+        const updatedSnake = preserveMethods(prevSnake);
+        updatedSnake.skin = selectedSkin;
+
+        return updatedSnake;
+      });
+    }
+  }, [selectedSkin, playerSnake]);
+
   // Use game loop hook
   useGameLoop(updateGame, 60, gameState);
 
   // Show controls button
   const renderControlsButton = () => (
     <button
-      onClick={() => setShowControls(true)}
+      onClick={() => {
+        // If game is not paused, pause it
+        if (gameState === GameState.PLAYING) {
+          setGameState(GameState.PAUSED);
+        }
+
+        setShowControls(true);
+      }}
       style={{
         position: "absolute",
         top: "10px",
