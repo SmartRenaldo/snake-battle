@@ -24,7 +24,7 @@ export const gameConfig = {
     widthIncrement: 1, // pixels to add to width at each interval
     maxWidth: 60, // maximum width in pixels
     selfCollisionImmunityTime: 0.3, // seconds of transparency after self collision
-    headImmunitySegments: 5, // number of segments behind head immune to collision
+    headImmunitySegments: 1, // number of segments behind head immune to collision
   },
 
   // AI snake settings
