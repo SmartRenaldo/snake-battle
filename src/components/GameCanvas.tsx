@@ -1,16 +1,10 @@
 // src/components/GameCanvas.tsx
 
 import React, { useRef, useEffect } from "react";
-import {
-  EntityType,
-  GameState,
-  FoodType,
-  SegmentType,
-} from "../utils/constants";
-import { gameConfig, SkinType, skins } from "../config/gameConfig";
+import { GameState, FoodType } from "../utils/constants";
+import { gameConfig } from "../config/gameConfig";
 import { Food } from "../models/Food";
 import { AnySnake } from "../types";
-import { SnakeSegment } from "../models/BaseSnake";
 import { Vector } from "../utils/vector";
 
 interface GameCanvasProps {
@@ -133,6 +127,344 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     }
   };
 
+  // Add default snake head drawing function
+  const drawDefaultSnakeHead = (
+    ctx: CanvasRenderingContext2D,
+    position: Vector,
+    direction: Vector,
+    width: number,
+    boosting: boolean
+  ) => {
+    const radius = width / 2;
+    const eyeSize = radius * 0.4;
+    const eyeOffset = radius * 0.3;
+
+    // Save current state to rotate the head
+    ctx.save();
+    ctx.translate(position.x, position.y);
+    ctx.rotate(Math.atan2(direction.y, direction.x));
+
+    // Keep the head fully opaque
+    ctx.globalAlpha = 1.0;
+
+    ctx.fillStyle = boosting ? "#33CC33" : "#00AA00";
+    ctx.beginPath();
+    ctx.arc(0, 0, radius, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Highlight effect
+    ctx.fillStyle = "rgba(255, 255, 255, 0.3)";
+    ctx.beginPath();
+    ctx.arc(-radius * 0.2, -radius * 0.2, radius * 0.5, 0, Math.PI * 0.8);
+    ctx.fill();
+
+    // ===== eye =====
+    // eye positions based on direction
+    const rightEyeX = direction.y * eyeOffset;
+    const rightEyeY = -direction.x * eyeOffset;
+    const leftEyeX = -direction.y * eyeOffset;
+    const leftEyeY = direction.x * eyeOffset;
+
+    // eye whites
+    ctx.fillStyle = "#FFFFFF";
+    ctx.beginPath();
+    ctx.arc(rightEyeX, rightEyeY, eyeSize, 0, Math.PI * 2);
+    ctx.arc(leftEyeX, leftEyeY, eyeSize, 0, Math.PI * 2);
+    ctx.fill();
+
+    // eye pupils
+    ctx.fillStyle = "#000000";
+    ctx.beginPath();
+    ctx.arc(
+      rightEyeX + radius * 0.15,
+      rightEyeY,
+      eyeSize * 0.5,
+      0,
+      Math.PI * 2
+    );
+    ctx.arc(leftEyeX + radius * 0.15, leftEyeY, eyeSize * 0.5, 0, Math.PI * 2);
+    ctx.fill();
+
+    // ===== Butterfly ribbon =====
+    ctx.save();
+
+    // Scale down the size of the ribbon
+    const ribbonColor = boosting ? "#FF6666" : "#FF9999";
+    const ribbonSize = radius * 0.8;
+
+    // Move the ribbon to the front of the head
+    const ribbonX = -radius * 0.6;
+    const ribbonY = -radius * 0.5;
+
+    ctx.translate(ribbonX, ribbonY);
+    ctx.rotate(-Math.PI / 6);
+
+    // Left side butterfly wing
+    ctx.fillStyle = ribbonColor;
+    ctx.beginPath();
+    ctx.ellipse(
+      -ribbonSize * 0.4,
+      0,
+      ribbonSize * 0.5,
+      ribbonSize * 0.3,
+      Math.PI / 4,
+      0,
+      Math.PI * 2
+    );
+    ctx.fill();
+
+    // Right side butterfly wing
+    ctx.beginPath();
+    ctx.ellipse(
+      ribbonSize * 0.4,
+      0,
+      ribbonSize * 0.5,
+      ribbonSize * 0.3,
+      -Math.PI / 4,
+      0,
+      Math.PI * 2
+    );
+    ctx.fill();
+
+    // Center of the bow
+    ctx.fillStyle = boosting ? "#FF3333" : "#FF6666";
+    ctx.beginPath();
+    ctx.arc(0, 0, ribbonSize * 0.25, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Add a shadow effect to the ribbon
+    ctx.strokeStyle = "#AA0000";
+    ctx.lineWidth = radius * 0.05;
+    ctx.beginPath();
+    ctx.ellipse(
+      -ribbonSize * 0.4,
+      0,
+      ribbonSize * 0.5,
+      ribbonSize * 0.3,
+      Math.PI / 4,
+      0,
+      Math.PI * 2
+    );
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.ellipse(
+      ribbonSize * 0.4,
+      0,
+      ribbonSize * 0.5,
+      ribbonSize * 0.3,
+      -Math.PI / 4,
+      0,
+      Math.PI * 2
+    );
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(0, 0, ribbonSize * 0.25, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // Restore the state of the ribbon
+    ctx.restore();
+
+    ctx.restore();
+  };
+
+  const drawMechanicalSnakeHead = (
+    ctx: CanvasRenderingContext2D,
+    position: Vector,
+    direction: Vector,
+    width: number,
+    boosting: boolean
+  ) => {
+    const radius = width / 2;
+    const scannerSize = radius * 0.3;
+
+    ctx.save();
+
+    // Move the canvas origin to the snake head position and rotate to match the direction
+    ctx.translate(position.x, position.y);
+    ctx.rotate(Math.atan2(direction.y, direction.x));
+
+    // Head shape
+    ctx.fillStyle = boosting ? "#444444" : "#333333";
+    ctx.beginPath();
+    // Draw a hexagon shape
+    for (let i = 0; i < 6; i++) {
+      const angle = (i / 6) * Math.PI * 2;
+      const x = Math.cos(angle) * radius * 1.1;
+      const y = Math.sin(angle) * radius;
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.closePath();
+    ctx.fill();
+
+    // Metallic shine
+    ctx.strokeStyle = "#555555";
+    ctx.lineWidth = radius * 0.1;
+    ctx.stroke();
+
+    // Add a gradient effect to the head
+    ctx.fillStyle = "#777777";
+    for (let i = 0; i < 6; i++) {
+      const angle = ((i + 0.5) / 6) * Math.PI * 2;
+      const x = Math.cos(angle) * radius * 0.8;
+      const y = Math.sin(angle) * radius * 0.7;
+      ctx.beginPath();
+      ctx.arc(x, y, radius * 0.15, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Scanner
+    ctx.fillStyle = boosting ? "#FF4400" : "#00AAFF";
+    ctx.beginPath();
+    ctx.arc(radius * 0.5, -radius * 0.3, scannerSize, 0, Math.PI * 2);
+    ctx.arc(radius * 0.5, radius * 0.3, scannerSize, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Inner scanner
+    ctx.strokeStyle = "#FFFFFF";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(radius * 0.4, -radius * 0.3);
+    ctx.lineTo(radius * 0.6, -radius * 0.3);
+    ctx.moveTo(radius * 0.4, radius * 0.3);
+    ctx.lineTo(radius * 0.6, radius * 0.3);
+    ctx.stroke();
+
+    // Add a glowing effect to the scanner
+    if (boosting) {
+      ctx.fillStyle = "rgba(255, 100, 0, 0.7)";
+      ctx.beginPath();
+      ctx.moveTo(-radius * 1.1, -radius * 0.5);
+      ctx.lineTo(-radius * 2.0, 0);
+      ctx.lineTo(-radius * 1.1, radius * 0.5);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    // Restore the canvas state
+    ctx.restore();
+  };
+
+  const drawBiologicalSnakeHead = (
+    ctx: CanvasRenderingContext2D,
+    position: Vector,
+    direction: Vector,
+    width: number,
+    boosting: boolean
+  ) => {
+    const radius = width / 2;
+
+    // Save current state to rotate the head
+    ctx.save();
+
+    // Move the canvas origin to the snake head position and rotate to match the direction
+    ctx.translate(position.x, position.y);
+    ctx.rotate(Math.atan2(direction.y, direction.x));
+
+    // Create a radial gradient for the head
+    const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, radius * 1.3);
+    if (boosting) {
+      gradient.addColorStop(0, "rgba(255, 100, 255, 0.9)");
+      gradient.addColorStop(0.6, "rgba(180, 50, 220, 0.6)");
+      gradient.addColorStop(1, "rgba(100, 20, 180, 0.2)");
+    } else {
+      gradient.addColorStop(0, "rgba(170, 70, 200, 0.9)");
+      gradient.addColorStop(0.6, "rgba(140, 50, 170, 0.6)");
+      gradient.addColorStop(1, "rgba(100, 50, 150, 0.2)");
+    }
+
+    ctx.fillStyle = gradient;
+
+    // Draw the head shape
+    ctx.beginPath();
+    ctx.arc(0, 0, radius * 1.2, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Add a glowing effect
+    ctx.fillStyle = boosting
+      ? "rgba(255, 230, 255, 0.6)"
+      : "rgba(200, 220, 255, 0.6)";
+
+    // Underline the head with a glow
+    for (let i = 0; i < 5; i++) {
+      const angle = (i / 5) * Math.PI * 2 + Math.sin(Date.now() / 1000) * 0.2;
+      const distance = radius * (0.5 + Math.sin(Date.now() / 500 + i) * 0.2);
+      const spotSize =
+        radius * (0.2 + Math.sin(Date.now() / 700 + i * 2) * 0.1);
+
+      const x = Math.cos(angle) * distance;
+      const y = Math.sin(angle) * distance;
+
+      ctx.beginPath();
+      ctx.arc(x, y, spotSize, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Beard
+    ctx.strokeStyle = boosting
+      ? "rgba(255, 200, 255, 0.4)"
+      : "rgba(170, 200, 240, 0.4)";
+    ctx.lineWidth = radius * 0.1;
+
+    for (let i = 0; i < 3; i++) {
+      const angle = (Math.PI / 3) * i + Math.sin(Date.now() / 800 + i) * 0.2;
+      const length = radius * (1.5 + Math.sin(Date.now() / 600 + i) * 0.3);
+
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+
+      // Calculate control points for the curve
+      const cp1x = -Math.cos(angle) * length * 0.5;
+      const cp1y = Math.sin(angle) * length * 0.5;
+      const cp2x = -Math.cos(angle) * length * 0.8;
+      const cp2y = Math.sin(angle) * length * 0.8;
+      const endX = -Math.cos(angle) * length;
+      const endY = Math.sin(angle) * length;
+
+      ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, endX, endY);
+      ctx.stroke();
+    }
+
+    // Restore the canvas state
+    ctx.restore();
+  };
+  const drawDefaultSnakeBody = (
+    ctx: CanvasRenderingContext2D,
+    position: Vector,
+    angle: number,
+    width: number,
+    boosting: boolean
+  ) => {
+    // Save current state to rotate the body
+    ctx.save();
+    ctx.translate(position.x, position.y);
+    ctx.rotate(angle);
+
+    const height = width;
+
+    // Create a radial gradient for the body
+    ctx.fillStyle = boosting ? "#33CC33" : "#00AA00";
+
+    ctx.beginPath();
+    ctx.ellipse(0, 0, height / 2, width / 2, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Add a gradient effect to the body
+    ctx.fillStyle = "rgba(255, 255, 255, 0.25)";
+    ctx.beginPath();
+    ctx.ellipse(0, -width / 6, height / 2.2, width / 3, 0, 0, Math.PI);
+    ctx.fill();
+
+    // Add a shadow effect
+    ctx.fillStyle = "rgba(0, 0, 0, 0.15)";
+    ctx.beginPath();
+    ctx.ellipse(0, width / 5, height / 2.5, width / 4, 0, Math.PI, Math.PI * 2);
+    ctx.fill();
+
+    // Restore the canvas state
+    ctx.restore();
+  };
+
   // Draw a snake
   const drawSnake = (ctx: CanvasRenderingContext2D, snake: AnySnake) => {
     // Add defensive check to prevent errors on undefined segments
@@ -151,133 +483,259 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       if (!snake.alive) continue;
 
       // Set color based on segment type and snake properties
-      let color = "#888888"; // Default for AI
-
-      if (snake.entityType === "player") {
-        const skin = skins[snake.skin as SkinType];
-
-        if (segment.type === SegmentType.HEAD) {
-          color = skin.headColor;
-        } else {
-          // Use boost color if boosting
-          color = segment.boosting ? skin.boostColor : skin.bodyColor;
-        }
-      }
-
-      // Check if the segment should be immune
-      // Safe check if the method exists (it might not after spread operator)
       const isImmune =
         typeof snake.isSegmentImmune === "function"
           ? snake.isSegmentImmune(i)
           : i < gameConfig.playerSnake.headImmunitySegments ||
             (segment.immunityTimeLeft ?? 0) > 0;
 
-      const alpha = isImmune ? 0.4 : 1.0;
-
-      // Set alpha
-      ctx.globalAlpha = alpha;
-
-      // Draw segment
-      ctx.fillStyle = color;
-      ctx.beginPath();
-      ctx.arc(
-        segment.position.x,
-        segment.position.y,
-        segment.width / 2,
-        0,
-        Math.PI * 2
-      );
-      ctx.fill();
-
-      // Draw segment border
-      ctx.strokeStyle = "#000000";
-      ctx.lineWidth = 1;
-      ctx.stroke();
-
-      // Reset alpha
-      ctx.globalAlpha = 1.0;
-
-      // Draw eyes on the head
+      // Keep the head fully opaque
       if (i === 0) {
-        drawSnakeEyes(ctx, segment, snake.direction, segment.width);
+        ctx.globalAlpha = 1.0;
+      } else {
+        const alpha = isImmune ? 0.8 : 1.0;
+        ctx.globalAlpha = alpha;
       }
 
-      // Draw boost particles if boosting
-      if (segment.boosting && i === segments.length - 1) {
-        drawBoostParticles(ctx, segment.position, snake.direction);
+      // Confirm segment type
+      if (i === 0) {
+        // Head segment
+        if (snake.entityType === "player") {
+          if (snake.skin === "default") {
+            drawDefaultSnakeHead(
+              ctx,
+              segment.position,
+              snake.direction,
+              segment.width,
+              segment.boosting
+            );
+          } else if (snake.skin === "mechanical") {
+            drawMechanicalSnakeHead(
+              ctx,
+              segment.position,
+              snake.direction,
+              segment.width,
+              segment.boosting
+            );
+          } else if (snake.skin === "biological") {
+            drawBiologicalSnakeHead(
+              ctx,
+              segment.position,
+              snake.direction,
+              segment.width,
+              segment.boosting
+            );
+          } else {
+            // Default head rendering
+            drawDefaultSnakeHead(
+              ctx,
+              segment.position,
+              snake.direction,
+              segment.width,
+              segment.boosting
+            );
+          }
+        } else {
+          // AI snake head - use a simple circle
+          drawMechanicalSnakeHead(
+            ctx,
+            segment.position,
+            snake.direction,
+            segment.width,
+            segment.boosting
+          );
+        }
+      } else {
+        // Body segment
+        if (snake.entityType === "player") {
+          if (snake.skin === "default") {
+            // Calculate the direction angle based on the segment's position
+            let directionAngle = 0;
+
+            // Calculate the direction angle based on the segment's position
+            if (i > 0 && i < segments.length - 1) {
+              // Middle segment - use the average direction of the previous and next segments
+              const prevSegment = segments[i - 1];
+              const nextSegment = segments[i + 1];
+
+              const dirToPrev = {
+                x: prevSegment.position.x - segment.position.x,
+                y: prevSegment.position.y - segment.position.y,
+              };
+              const dirToNext = {
+                x: nextSegment.position.x - segment.position.x,
+                y: nextSegment.position.y - segment.position.y,
+              };
+
+              // Average the two directions
+              const avgDir = {
+                x: (dirToPrev.x + dirToNext.x) / 2,
+                y: (dirToPrev.y + dirToNext.y) / 2,
+              };
+              directionAngle = Math.atan2(avgDir.y, avgDir.x);
+            } else if (i === segments.length - 1 && i > 0) {
+              // Tail segment - use the direction to the previous segment
+              const prevSegment = segments[i - 1];
+              const dir = {
+                x: segment.position.x - prevSegment.position.x,
+                y: segment.position.y - prevSegment.position.y,
+              };
+              directionAngle = Math.atan2(dir.y, dir.x);
+            } else {
+              directionAngle = Math.atan2(snake.direction.y, snake.direction.x);
+            }
+
+            // Use the calculated direction angle for the body segment
+            drawDefaultSnakeBody(
+              ctx,
+              segment.position,
+              directionAngle,
+              segment.width,
+              segment.boosting
+            );
+          } else if (snake.skin === "mechanical") {
+            // Mechanical style body segment
+            const isFifthSegment = i % 5 === 0;
+
+            // Body shape
+            ctx.fillStyle = "#333333";
+            ctx.beginPath();
+            ctx.arc(
+              segment.position.x,
+              segment.position.y,
+              segment.width / 2,
+              0,
+              Math.PI * 2
+            );
+            ctx.fill();
+
+            // Pattern
+            const energyColor = segment.boosting
+              ? i % 3 === 0
+                ? "#FF4400"
+                : "#FFAA00"
+              : "#00AAFF";
+
+            ctx.strokeStyle = energyColor;
+            ctx.lineWidth = segment.width * 0.2;
+            ctx.beginPath();
+
+            if (i < segments.length - 1) {
+              const nextSegment = segments[i + 1];
+              ctx.moveTo(segment.position.x, segment.position.y);
+              ctx.lineTo(nextSegment.position.x, nextSegment.position.y);
+            }
+
+            ctx.stroke();
+
+            // Add a small circle for the fifth segment
+            if (isFifthSegment) {
+              ctx.fillStyle = "#FFFFFF";
+              ctx.beginPath();
+              ctx.arc(
+                segment.position.x,
+                segment.position.y,
+                segment.width * 0.2,
+                0,
+                Math.PI * 2
+              );
+              ctx.fill();
+            }
+          } else if (snake.skin === "biological") {
+            // Add a gradient effect for the body
+            const gradient = ctx.createRadialGradient(
+              segment.position.x,
+              segment.position.y,
+              0,
+              segment.position.x,
+              segment.position.y,
+              segment.width
+            );
+
+            if (segment.boosting) {
+              gradient.addColorStop(0, "rgba(200, 100, 230, 0.8)");
+              gradient.addColorStop(1, "rgba(140, 50, 190, 0.2)");
+            } else {
+              gradient.addColorStop(0, "rgba(170, 70, 200, 0.7)");
+              gradient.addColorStop(1, "rgba(100, 50, 150, 0.1)");
+            }
+
+            ctx.fillStyle = gradient;
+            ctx.beginPath();
+            ctx.arc(
+              segment.position.x,
+              segment.position.y,
+              segment.width / 2,
+              0,
+              Math.PI * 2
+            );
+            ctx.fill();
+
+            // Add a shadow effect
+            if (i % 3 === 0) {
+              ctx.fillStyle = segment.boosting
+                ? "rgba(255, 200, 255, 0.4)"
+                : "rgba(200, 220, 255, 0.3)";
+
+              ctx.beginPath();
+              const pulseSize =
+                segment.width *
+                (0.2 + Math.sin(Date.now() / 500 + i / 5) * 0.1);
+              ctx.arc(
+                segment.position.x,
+                segment.position.y,
+                pulseSize,
+                0,
+                Math.PI * 2
+              );
+              ctx.fill();
+            }
+          }
+        } else {
+          // AI snake body segment - use a simple circle
+          ctx.fillStyle = "#555555";
+          ctx.beginPath();
+          ctx.arc(
+            segment.position.x,
+            segment.position.y,
+            segment.width / 2,
+            0,
+            Math.PI * 2
+          );
+          ctx.fill();
+
+          const energyColor = segment.boosting ? "#FF4400" : "#AAAAAA";
+
+          ctx.strokeStyle = energyColor;
+          ctx.lineWidth = segment.width * 0.2;
+          ctx.beginPath();
+
+          if (i < segments.length - 1) {
+            const nextSegment = segments[i + 1];
+            ctx.moveTo(segment.position.x, segment.position.y);
+            ctx.lineTo(nextSegment.position.x, nextSegment.position.y);
+          }
+
+          ctx.stroke();
+        }
       }
     }
 
-    // Draw length indicator above the snake
-    if (snake.entityType === EntityType.PLAYER) {
-      ctx.fillStyle = "#FFFFFF";
-      ctx.font = "12px Arial";
-      ctx.textAlign = "center";
-      const headPos = snake.segments[0].position;
-      ctx.fillText(
-        `Length: ${snake.segments.length}`,
-        headPos.x,
-        headPos.y - 20
+    // Restore the canvas state
+    ctx.globalAlpha = 1.0;
+
+    // Create a shadow effect for the tail
+    if (
+      snake.entityType === "player" &&
+      snake.boosting &&
+      segments.length > 0
+    ) {
+      drawBoostParticles(
+        ctx,
+        segments[segments.length - 1].position,
+        snake.direction
       );
     }
-
-    if (snake.entityType === EntityType.AI_SNAKE) {
-      // Check if this is a newly spawned AI snake
-      const timeSinceSpawn = Date.now() - (snake.spawnTime || 0);
-      if (timeSinceSpawn < 1000) {
-        // 1 second spawn animation
-        const pulseSize = 30 + Math.sin(timeSinceSpawn / 100) * 15;
-        drawSpawnEffect(ctx, snake.segments[0].position, pulseSize);
-      }
-    }
-  };
-
-  // Draw snake eyes
-  const drawSnakeEyes = (
-    ctx: CanvasRenderingContext2D,
-    segment: SnakeSegment,
-    direction: { x: number; y: number },
-    width: number
-  ) => {
-    const eyeOffset = width * 0.3;
-    const eyeRadius = width * 0.15;
-
-    // Calculate eye positions based on direction
-    const rightEyeX = segment.position.x + direction.y * eyeOffset;
-    const rightEyeY = segment.position.y - direction.x * eyeOffset;
-    const leftEyeX = segment.position.x - direction.y * eyeOffset;
-    const leftEyeY = segment.position.y + direction.x * eyeOffset;
-
-    // Draw eye whites
-    ctx.fillStyle = "#FFFFFF";
-    ctx.beginPath();
-    ctx.arc(rightEyeX, rightEyeY, eyeRadius, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.beginPath();
-    ctx.arc(leftEyeX, leftEyeY, eyeRadius, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Draw pupils
-    ctx.fillStyle = "#000000";
-    const pupilOffset = eyeRadius * 0.5;
-    ctx.beginPath();
-    ctx.arc(
-      rightEyeX + direction.x * pupilOffset,
-      rightEyeY + direction.y * pupilOffset,
-      eyeRadius * 0.5,
-      0,
-      Math.PI * 2
-    );
-    ctx.fill();
-    ctx.beginPath();
-    ctx.arc(
-      leftEyeX + direction.x * pupilOffset,
-      leftEyeY + direction.y * pupilOffset,
-      eyeRadius * 0.5,
-      0,
-      Math.PI * 2
-    );
-    ctx.fill();
   };
 
   // Draw boost particles
@@ -498,28 +956,6 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     ctx.fillStyle = "#88FF88";
     ctx.font = "24px Arial";
     ctx.fillText("Click to Restart", width / 2, height / 2 + 120);
-  };
-
-  const drawSpawnEffect = (
-    ctx: CanvasRenderingContext2D,
-    position: Vector,
-    radius: number
-  ) => {
-    // Create a pulsing circle effect
-    ctx.beginPath();
-    ctx.arc(position.x, position.y, radius, 0, Math.PI * 2);
-    ctx.fillStyle = "rgba(255, 255, 255, 0.3)";
-    ctx.fill();
-
-    ctx.beginPath();
-    ctx.arc(position.x, position.y, radius * 0.7, 0, Math.PI * 2);
-    ctx.fillStyle = "rgba(255, 255, 255, 0.5)";
-    ctx.fill();
-
-    ctx.beginPath();
-    ctx.arc(position.x, position.y, radius * 0.4, 0, Math.PI * 2);
-    ctx.fillStyle = "rgba(255, 255, 255, 0.7)";
-    ctx.fill();
   };
 
   return (
