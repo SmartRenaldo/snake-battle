@@ -11,12 +11,13 @@ interface GameCanvasProps {
   width: number;
   height: number;
   playerSnake: AnySnake | null;
-  aiSnakes: AnySnake[]; // Accept any snake type
+  aiSnakes: AnySnake[];
   foods: Food[];
   gameState: GameState;
   score: number;
   highScore: number;
   canvasRef: React.RefObject<HTMLCanvasElement | null>;
+  onTogglePlayPause?: () => void;
 }
 
 const GameCanvas: React.FC<GameCanvasProps> = ({
@@ -29,7 +30,72 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   score,
   highScore,
   canvasRef,
+  onTogglePlayPause,
 }) => {
+  const buttonRegion = useRef({
+    x: 20,
+    y: 70,
+    width: 40,
+    height: 40,
+  });
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas || !onTogglePlayPause) return;
+
+    const handleClick = (event: MouseEvent) => {
+      const rect = canvas.getBoundingClientRect();
+      const x = event.clientX - rect.left;
+      const y = event.clientY - rect.top;
+
+      // Check if the click is within the button region
+      const button = buttonRegion.current;
+      if (
+        x >= button.x &&
+        x <= button.x + button.width &&
+        y >= button.y &&
+        y <= button.y + button.height
+      ) {
+        onTogglePlayPause();
+      }
+    };
+
+    canvas.addEventListener("click", handleClick);
+
+    return () => {
+      canvas.removeEventListener("click", handleClick);
+    };
+  }, [canvasRef, onTogglePlayPause]);
+
+  const drawPlayPauseButton = (ctx: CanvasRenderingContext2D) => {
+    const button = buttonRegion.current;
+    const isPlaying = gameState === GameState.PLAYING;
+
+    ctx.fillStyle = "rgba(0, 0, 0, 0.6)";
+    ctx.beginPath();
+    ctx.roundRect(button.x, button.y, button.width, button.height, 5);
+    ctx.fill();
+
+    ctx.strokeStyle = "#444";
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    ctx.fillStyle = "#FFFFFF";
+
+    if (isPlaying) {
+      ctx.fillRect(button.x + 12, button.y + 10, 5, 20);
+      ctx.fillRect(button.x + 24, button.y + 10, 5, 20);
+    } else {
+      // Play icon (triangle)
+      ctx.beginPath();
+      ctx.moveTo(button.x + 14, button.y + 10);
+      ctx.lineTo(button.x + 14, button.y + 30);
+      ctx.lineTo(button.x + 30, button.y + 20);
+      ctx.closePath();
+      ctx.fill();
+    }
+  };
+
   // Reference to the canvas context
   const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
 
@@ -84,6 +150,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       // Draw pause overlay if paused
       if (gameState === GameState.PAUSED) {
         drawPauseOverlay(ctx);
+        drawPlayPauseButton(ctx);
       }
     } else if (gameState === GameState.START) {
       drawStartScreen(ctx);
@@ -826,6 +893,10 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     ctx.fillText(`Score: ${score}`, 20, 30);
     ctx.fillText(`High Score: ${highScore}`, 20, 60);
 
+    if (gameState === GameState.PLAYING || gameState === GameState.PAUSED) {
+      drawPlayPauseButton(ctx);
+    }
+
     // Length display and booster bar
     if (playerSnake) {
       const length = playerSnake.segments.length;
@@ -902,7 +973,11 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     ctx.fillText("PAUSED", width / 2, height / 2 - 20);
 
     ctx.font = "18px Arial";
-    ctx.fillText("Press P to resume", width / 2, height / 2 + 20);
+    ctx.fillText(
+      "Press P or play button to resume",
+      width / 2,
+      height / 2 + 20
+    );
   };
 
   // Draw start screen

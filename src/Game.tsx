@@ -988,6 +988,14 @@ const Game: React.FC<GameProps> = ({ selectedSkin = "default" }) => {
     setGameState(GameState.START);
   }, []);
 
+  const togglePlayPause = useCallback(() => {
+    if (gameState === GameState.PLAYING) {
+      setGameState(GameState.PAUSED);
+    } else if (gameState === GameState.PAUSED) {
+      setGameState(GameState.PLAYING);
+    }
+  }, [gameState]);
+
   return (
     <div style={{ position: "relative", width: "100%", height: "100%" }}>
       {/* Game Canvas */}
@@ -1001,6 +1009,7 @@ const Game: React.FC<GameProps> = ({ selectedSkin = "default" }) => {
         score={score}
         highScore={highScore}
         canvasRef={canvasRef}
+        onTogglePlayPause={togglePlayPause}
       />
 
       {/* Score Board (only shown during gameplay) */}
