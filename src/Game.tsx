@@ -984,6 +984,10 @@ const Game: React.FC<GameProps> = ({ selectedSkin = "default" }) => {
     </button>
   );
 
+  const handleCloseGameOver = useCallback(() => {
+    setGameState(GameState.START);
+  }, []);
+
   return (
     <div style={{ position: "relative", width: "100%", height: "100%" }}>
       {/* Game Canvas */}
@@ -1014,6 +1018,7 @@ const Game: React.FC<GameProps> = ({ selectedSkin = "default" }) => {
           score={score}
           highScore={highScore}
           onRestart={resetGame}
+          onClose={handleCloseGameOver}
         />
       )}
 
