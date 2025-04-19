@@ -17,19 +17,21 @@ const GameOverModal: React.FC<GameOverModalProps> = ({
 }) => {
   return (
     <div
-      // 直接在背景层添加点击处理
+      // Click handler on background to close
       onClick={onClose}
       style={{
-        position: "absolute",
+        position: "fixed", // Changed from absolute to fixed
         top: 0,
         left: 0,
         right: 0,
         bottom: 0,
-        backgroundColor: "rgba(0, 0, 0, 0.7)",
+        width: "100vw", // Added width to ensure full coverage
+        height: "100vh", // Added height to ensure full coverage
+        backgroundColor: "rgba(0, 0, 0, 0.8)", // Slightly darker background
         display: "flex",
         justifyContent: "center",
         alignItems: "center",
-        zIndex: 1000,
+        zIndex: 9999, // Increased z-index to ensure it's above everything
       }}
     >
       <div
@@ -38,14 +40,19 @@ const GameOverModal: React.FC<GameOverModalProps> = ({
           backgroundColor: "rgba(0, 0, 0, 0.9)",
           padding: "2rem",
           borderRadius: "10px",
-          boxShadow: "0 0 20px rgba(255, 0, 0, 0.5)",
+          boxShadow: "0 0 30px rgba(255, 0, 0, 0.6)",
           color: "white",
           textAlign: "center",
           minWidth: "300px",
+          maxWidth: "500px", // Added max-width for better appearance on larger screens
         }}
       >
         <h2
-          style={{ color: "#FF0000", fontSize: "2rem", marginBottom: "1rem" }}
+          style={{
+            color: "#FF0000",
+            fontSize: "2.5rem",
+            marginBottom: "1.5rem",
+          }}
         >
           GAME OVER
         </h2>

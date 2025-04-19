@@ -1,6 +1,6 @@
 // src/components/ScoreBoard.tsx
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Snake } from "../models/Snake";
 import { gameConfig } from "../config/gameConfig";
 
@@ -15,6 +15,29 @@ const ScoreBoard: React.FC<ScoreBoardProps> = ({
   score,
   highScore,
 }) => {
+  // State to track if screen is large enough to show scoreboard
+  const [isLargeScreen, setIsLargeScreen] = useState(window.innerWidth >= 1200);
+
+  // Effect to handle window resize
+  useEffect(() => {
+    const handleResize = () => {
+      setIsLargeScreen(window.innerWidth >= 1200);
+    };
+
+    // Add event listener
+    window.addEventListener("resize", handleResize);
+
+    // Clean up
+    return () => {
+      window.removeEventListener("resize", handleResize);
+    };
+  }, []);
+
+  // If screen is not large enough, don't render anything
+  if (!isLargeScreen) {
+    return null;
+  }
+
   // Calculate boost percentage
   const getBoostPercentage = () => {
     if (!playerSnake) return 0;
