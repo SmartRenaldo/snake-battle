@@ -111,7 +111,6 @@ const StartScreen3DSnake: React.FC<StartScreen3DSnakeProps> = ({
 
     // Animation loop
     const animate = () => {
-      const animationId = requestAnimationFrame(animate);
       time += 0.01;
 
       // Move head in a circle
