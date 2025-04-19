@@ -225,8 +225,8 @@ const MobileControls: React.FC<MobileControlsProps> = ({
           position: "absolute",
           left: "20px", // Closer to left edge
           bottom: "20px", // Closer to bottom edge
-          width: "80px", // Smaller size
-          height: "80px", // Smaller size
+          width: "60px", // Smaller size
+          height: "60px", // Smaller size
           borderRadius: "50%",
           backgroundColor: "rgba(255, 255, 255, 0.1)",
           border: "2px solid rgba(255, 255, 255, 0.3)",
