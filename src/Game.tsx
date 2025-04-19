@@ -17,6 +17,7 @@ import { useGameLoop } from "./hooks/useGameLoop";
 import { useMouseControl } from "./hooks/useMouseControl";
 import { SkinType } from "./config/gameConfig";
 import { preserveMethods } from "./utils/snakeHelpers";
+import MobileControls from "./components/MobileControls";
 
 interface GameProps {
   selectedSkin?: SkinType;
@@ -37,6 +38,10 @@ const Game: React.FC<GameProps> = ({ selectedSkin = "default" }) => {
   const [highScore, setHighScore] = useState<number>(0);
   // Show controls info
   const [showControls, setShowControls] = useState<boolean>(false);
+  // Add state for mobile detection
+  const [isMobile, setIsMobile] = useState<boolean>(false);
+  // Mobile direction from virtual joystick
+  const [mobileDirection, setMobileDirection] = useState<Vector | null>(null);
   const aiGenerationQueue = useRef<number>(0);
   const isGeneratingAI = useRef<boolean>(false);
   const recentlyRemovedSnakes = useRef<Set<string>>(new Set());
@@ -48,6 +53,62 @@ const Game: React.FC<GameProps> = ({ selectedSkin = "default" }) => {
   const { mousePosition, leftButtonPressed, mouseInCanvas } = useMouseControl(
     canvasRef,
     gameState
+  );
+
+  // Check if device is mobile
+  useEffect(() => {
+    const checkMobile = () => {
+      const userAgent = navigator.userAgent.toLowerCase();
+      const isMobileDevice =
+        /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(
+          userAgent
+        );
+      const isTouchScreen =
+        "ontouchstart" in window || navigator.maxTouchPoints > 0;
+      setIsMobile(
+        isMobileDevice || (isTouchScreen && window.innerWidth <= 1024)
+      );
+    };
+
+    checkMobile();
+
+    // Recheck on resize
+    window.addEventListener("resize", checkMobile);
+
+    return () => {
+      window.removeEventListener("resize", checkMobile);
+    };
+  }, []);
+
+  // Handle direction updates from mobile joystick
+  const handleMobileDirectionChange = useCallback((direction: Vector) => {
+    setMobileDirection(direction);
+  }, []);
+
+  // Handle boost button state
+  const handleMobileBoostChange = useCallback(
+    (boosting: boolean) => {
+      if (!playerSnake) return;
+
+      // Ensure snake has methods
+      const activePlayerSnake = ensureSnakeMethods(playerSnake);
+
+      if (boosting) {
+        if (typeof activePlayerSnake.startBoost === "function") {
+          activePlayerSnake.startBoost();
+        }
+      } else {
+        if (typeof activePlayerSnake.stopBoost === "function") {
+          activePlayerSnake.stopBoost();
+        }
+      }
+
+      // Only update state if we had to recreate the snake
+      if (activePlayerSnake !== playerSnake) {
+        setPlayerSnake(activePlayerSnake);
+      }
+    },
+    [playerSnake]
   );
 
   // Initialize game
@@ -815,22 +876,36 @@ const Game: React.FC<GameProps> = ({ selectedSkin = "default" }) => {
     // Ensure snake has methods
     const activePlayerSnake = ensureSnakeMethods(playerSnake);
 
-    // Only update the direction if the player snake has methods
-    if (
+    // For mobile, use virtual joystick direction
+    if (isMobile && mobileDirection) {
+      if (typeof activePlayerSnake.updateDirection === "function") {
+        // Convert joystick direction to a position relative to the snake head
+        const headPos = activePlayerSnake.headPosition;
+        const targetPos = {
+          x: headPos.x + mobileDirection.x * 100, // Amplify the direction
+          y: headPos.y + mobileDirection.y * 100,
+        };
+
+        activePlayerSnake.updateDirection(targetPos);
+      }
+    }
+    // For desktop, use mouse position as before
+    else if (
+      !isMobile &&
       mouseInCanvas &&
       typeof activePlayerSnake.updateDirection === "function"
     ) {
       activePlayerSnake.updateDirection(mousePosition);
-    }
 
-    // Handle boost
-    if (leftButtonPressed) {
-      if (typeof activePlayerSnake.startBoost === "function") {
-        activePlayerSnake.startBoost();
-      }
-    } else {
-      if (typeof activePlayerSnake.stopBoost === "function") {
-        activePlayerSnake.stopBoost();
+      // Handle boost (this is now handled separately for mobile)
+      if (leftButtonPressed) {
+        if (typeof activePlayerSnake.startBoost === "function") {
+          activePlayerSnake.startBoost();
+        }
+      } else {
+        if (typeof activePlayerSnake.stopBoost === "function") {
+          activePlayerSnake.stopBoost();
+        }
       }
     }
 
@@ -838,8 +913,15 @@ const Game: React.FC<GameProps> = ({ selectedSkin = "default" }) => {
     if (activePlayerSnake !== playerSnake) {
       setPlayerSnake(activePlayerSnake);
     }
-    // No else clause for state update - game loop handles position updates
-  }, [gameState, playerSnake, mousePosition, leftButtonPressed, mouseInCanvas]);
+  }, [
+    gameState,
+    playerSnake,
+    mousePosition,
+    leftButtonPressed,
+    mouseInCanvas,
+    isMobile,
+    mobileDirection,
+  ]);
 
   // Handle keyboard inputs
   useEffect(() => {
@@ -1011,6 +1093,15 @@ const Game: React.FC<GameProps> = ({ selectedSkin = "default" }) => {
         canvasRef={canvasRef}
         onTogglePlayPause={togglePlayPause}
       />
+
+      {/* Mobile Controls - only show on mobile and during gameplay */}
+      {isMobile && gameState === GameState.PLAYING && (
+        <MobileControls
+          onDirectionChange={handleMobileDirectionChange}
+          onBoostChange={handleMobileBoostChange}
+          isVisible={true}
+        />
+      )}
 
       {/* Score Board (only shown during gameplay) */}
       {gameState === GameState.PLAYING && playerSnake && (
