@@ -1161,7 +1161,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           <svg
             width={isMobile ? "315" : "420"}
             height={isMobile ? "225" : "300"}
-            viewBox="0 0 420 300"
+            viewBox={isMobile ? "0 0 420 240" : "0 0 420 300"}
           >
             <defs>
               <linearGradient
