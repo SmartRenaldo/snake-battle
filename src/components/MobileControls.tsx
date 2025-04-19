@@ -25,8 +25,25 @@ const MobileControls: React.FC<MobileControlsProps> = ({
   const joystickTouchId = useRef<number | null>(null);
   const boostTouchId = useRef<number | null>(null);
 
-  // Joystick constants
-  const JOYSTICK_MAX_DISTANCE = 50;
+  // Joystick constants - make it smaller
+  const JOYSTICK_MAX_DISTANCE = 40;
+
+  // Prevent page scrolling when using controls
+  useEffect(() => {
+    const preventDefault = (e: TouchEvent) => {
+      // Check if touch is in our control areas before preventing default
+      if (joystickTouchId.current !== null || boostTouchId.current !== null) {
+        e.preventDefault();
+      }
+    };
+
+    // Add event listeners to prevent scrolling
+    document.addEventListener("touchmove", preventDefault, { passive: false });
+
+    return () => {
+      document.removeEventListener("touchmove", preventDefault);
+    };
+  }, []);
 
   // Handle joystick movement
   const updateJoystickPosition = (clientX: number, clientY: number) => {
@@ -142,14 +159,6 @@ const MobileControls: React.FC<MobileControlsProps> = ({
     }
   };
 
-  // Clean up touch tracking when component unmounts
-  useEffect(() => {
-    return () => {
-      joystickTouchId.current = null;
-      boostTouchId.current = null;
-    };
-  }, []);
-
   // Don't render if not visible
   if (!isVisible) {
     return null;
@@ -172,10 +181,10 @@ const MobileControls: React.FC<MobileControlsProps> = ({
         ref={joystickBaseRef}
         style={{
           position: "absolute",
-          left: "50px",
-          bottom: "50px",
-          width: "100px",
-          height: "100px",
+          left: "20px",
+          bottom: "20px",
+          width: "80px",
+          height: "80px",
           borderRadius: "50%",
           backgroundColor: "rgba(255, 255, 255, 0.1)",
           border: "2px solid rgba(255, 255, 255, 0.3)",
@@ -186,15 +195,15 @@ const MobileControls: React.FC<MobileControlsProps> = ({
         onTouchEnd={handleJoystickTouchEnd}
         onTouchCancel={handleJoystickTouchEnd}
       >
-        {/* Joystick Knob */}
+        {/* Joystick Knob - smaller */}
         <div
           ref={joystickRef}
           style={{
             position: "absolute",
             top: "50%",
             left: "50%",
-            width: "40px",
-            height: "40px",
+            width: "30px",
+            height: "30px",
             borderRadius: "50%",
             backgroundColor: isTouchingJoystick
               ? "rgba(0, 200, 0, 0.7)"
@@ -206,17 +215,17 @@ const MobileControls: React.FC<MobileControlsProps> = ({
         />
       </div>
 
-      {/* Boost Button */}
+      {/* Lightning Boost Button - moved closer to corner and smaller */}
       <div
         style={{
           position: "absolute",
-          right: "50px",
-          bottom: "50px",
-          width: "80px",
-          height: "80px",
+          right: "20px",
+          bottom: "20px",
+          width: "60px",
+          height: "60px",
           borderRadius: "50%",
           backgroundColor: isBoosting
-            ? "rgba(255, 100, 0, 0.7)"
+            ? "rgba(255, 150, 0, 0.7)"
             : "rgba(200, 100, 0, 0.5)",
           border: "2px solid rgba(255, 255, 255, 0.5)",
           display: "flex",
@@ -230,9 +239,21 @@ const MobileControls: React.FC<MobileControlsProps> = ({
         onTouchEnd={handleBoostTouchEnd}
         onTouchCancel={handleBoostTouchEnd}
       >
-        <div style={{ fontSize: "14px", color: "white", fontWeight: "bold" }}>
-          BOOST
-        </div>
+        {/* Lightning SVG Icon */}
+        <svg
+          width="30"
+          height="30"
+          viewBox="0 0 24 24"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            d="M13 2L4.09 12.2C3.74 12.61 3.56 12.81 3.56 13.04C3.56 13.27 3.66 13.49 3.83 13.62C4 13.76 4.3 13.76 4.9 13.76H11V22L19.91 11.8C20.26 11.39 20.44 11.19 20.44 10.96C20.44 10.73 20.34 10.51 20.17 10.38C20 10.24 19.7 10.24 19.1 10.24H13V2Z"
+            fill="white"
+            stroke="white"
+            strokeWidth="1"
+          />
+        </svg>
       </div>
     </div>
   );
