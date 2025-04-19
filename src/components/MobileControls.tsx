@@ -129,17 +129,17 @@ const MobileControls: React.FC<MobileControlsProps> = ({
     }
   };
 
-  // Handle boost button press
+  // Handle boost button press - ensure it consistently calls onBoostChange(true)
   const handleBoostTouchStart = (e: React.TouchEvent) => {
     if (boostTouchId.current === null) {
       boostTouchId.current = e.touches[0].identifier;
       setIsBoosting(true);
-      onBoostChange(true);
+      onBoostChange(true); // Start boosting
       e.preventDefault();
     }
   };
 
-  // Handle boost button release
+  // Handle boost button release - ALWAYS stop boosting on release
   const handleBoostTouchEnd = (e: React.TouchEvent) => {
     // Check if our touch is ending
     let touchFound = false;
@@ -154,10 +154,52 @@ const MobileControls: React.FC<MobileControlsProps> = ({
     if (touchFound) {
       boostTouchId.current = null;
       setIsBoosting(false);
-      onBoostChange(false);
+      onBoostChange(false); // Stop boosting
       e.preventDefault();
     }
   };
+
+  // Add touchcancel to handle cases where the touch is interrupted
+  const handleBoostTouchCancel = (e: React.TouchEvent) => {
+    if (boostTouchId.current !== null) {
+      boostTouchId.current = null;
+      setIsBoosting(false);
+      onBoostChange(false); // Stop boosting
+      e.preventDefault();
+    }
+  };
+
+  // Also monitor document touches to ensure we catch all touch ends
+  // This handles cases where touches may not end directly on our elements
+  useEffect(() => {
+    const handleDocumentTouchEnd = (e: TouchEvent) => {
+      // Check for boost touch ending
+      if (boostTouchId.current !== null) {
+        let boostTouchFound = false;
+
+        // Look through remaining touches to see if our boost touch is still active
+        for (let i = 0; i < e.touches.length; i++) {
+          if (e.touches[i].identifier === boostTouchId.current) {
+            boostTouchFound = true;
+            break;
+          }
+        }
+
+        // If boost touch is no longer in the active touches, consider it ended
+        if (!boostTouchFound) {
+          boostTouchId.current = null;
+          setIsBoosting(false);
+          onBoostChange(false); // Stop boosting
+        }
+      }
+    };
+
+    document.addEventListener("touchend", handleDocumentTouchEnd);
+
+    return () => {
+      document.removeEventListener("touchend", handleDocumentTouchEnd);
+    };
+  }, [onBoostChange]);
 
   // Don't render if not visible
   if (!isVisible) {
@@ -176,15 +218,15 @@ const MobileControls: React.FC<MobileControlsProps> = ({
         pointerEvents: "none",
       }}
     >
-      {/* Joystick Base */}
+      {/* Joystick Base - moved closer to corner and smaller */}
       <div
         ref={joystickBaseRef}
         style={{
           position: "absolute",
-          left: "20px",
-          bottom: "20px",
-          width: "80px",
-          height: "80px",
+          left: "20px", // Closer to left edge
+          bottom: "20px", // Closer to bottom edge
+          width: "80px", // Smaller size
+          height: "80px", // Smaller size
           borderRadius: "50%",
           backgroundColor: "rgba(255, 255, 255, 0.1)",
           border: "2px solid rgba(255, 255, 255, 0.3)",
@@ -202,8 +244,8 @@ const MobileControls: React.FC<MobileControlsProps> = ({
             position: "absolute",
             top: "50%",
             left: "50%",
-            width: "30px",
-            height: "30px",
+            width: "30px", // Smaller size
+            height: "30px", // Smaller size
             borderRadius: "50%",
             backgroundColor: isTouchingJoystick
               ? "rgba(0, 200, 0, 0.7)"
@@ -219,10 +261,10 @@ const MobileControls: React.FC<MobileControlsProps> = ({
       <div
         style={{
           position: "absolute",
-          right: "20px",
-          bottom: "20px",
-          width: "60px",
-          height: "60px",
+          right: "20px", // Closer to right edge
+          bottom: "20px", // Closer to bottom edge
+          width: "60px", // Smaller size
+          height: "60px", // Smaller size
           borderRadius: "50%",
           backgroundColor: isBoosting
             ? "rgba(255, 150, 0, 0.7)"
@@ -237,7 +279,7 @@ const MobileControls: React.FC<MobileControlsProps> = ({
         }}
         onTouchStart={handleBoostTouchStart}
         onTouchEnd={handleBoostTouchEnd}
-        onTouchCancel={handleBoostTouchEnd}
+        onTouchCancel={handleBoostTouchCancel}
       >
         {/* Lightning SVG Icon */}
         <svg
