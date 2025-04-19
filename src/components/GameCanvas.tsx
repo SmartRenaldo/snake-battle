@@ -1,6 +1,6 @@
 // src/components/GameCanvas.tsx
 
-import React, { useRef, useEffect } from "react";
+import React, { useRef, useEffect, useState } from "react";
 import { GameState, FoodType } from "../utils/constants";
 import { gameConfig } from "../config/gameConfig";
 import { Food } from "../models/Food";
@@ -95,6 +95,33 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       ctx.fill();
     }
   };
+
+  const [animationTime, setAnimationTime] = useState(0);
+
+  useEffect(() => {
+    let animationFrame: number;
+    let lastTime = 0;
+
+    const animate = (time: number) => {
+      if (lastTime === 0) lastTime = time;
+      const delta = time - lastTime;
+      lastTime = time;
+
+      setAnimationTime((prev) => prev + delta * 0.001);
+
+      animationFrame = requestAnimationFrame(animate);
+    };
+
+    // Only animate when in START state
+    if (gameState === GameState.START) {
+      animationFrame = requestAnimationFrame(animate);
+    }
+
+    return () => {
+      cancelAnimationFrame(animationFrame);
+      lastTime = 0;
+    };
+  }, [gameState]);
 
   // Reference to the canvas context
   const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
@@ -982,27 +1009,48 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
 
   // Draw start screen
   const drawStartScreen = (ctx: CanvasRenderingContext2D) => {
-    // Title
+    // Semi-transparent overlay
+    ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
+    ctx.fillRect(0, 0, width, height);
+
+    // Add a stylish gradient background
+    const gradient = ctx.createRadialGradient(
+      width / 2,
+      height / 2,
+      10,
+      width / 2,
+      height / 2,
+      width / 2
+    );
+    gradient.addColorStop(0, "rgba(0, 50, 0, 0.4)");
+    gradient.addColorStop(1, "rgba(0, 0, 0, 0)");
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, width, height);
+
+    // Title with glow effect
+    ctx.shadowColor = "#33FF33";
+    ctx.shadowBlur = 20;
     ctx.fillStyle = "#FFFFFF";
     ctx.font = "bold 48px Arial";
     ctx.textAlign = "center";
-    ctx.fillText("SNAKE BATTLE", width / 2, height / 2 - 100);
+    ctx.fillText("SNAKE BATTLE", width / 2, height / 2 - 150);
+    ctx.shadowBlur = 0;
 
-    // Instructions
-    ctx.font = "24px Arial";
-    ctx.fillText("Use mouse to control direction", width / 2, height / 2 - 30);
-    ctx.fillText(
-      "Hold left mouse button to boost (costs length)",
-      width / 2,
-      height / 2 + 10
-    );
-    ctx.fillText("Eat food to grow longer", width / 2, height / 2 + 50);
-    ctx.fillText("Avoid walls and other snakes", width / 2, height / 2 + 90);
+    // Instructions - positioned at the bottom
+    ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
+    ctx.font = "18px Arial";
+    ctx.fillText("Use mouse to control direction", width / 2, height - 170);
+    ctx.fillText("Hold left mouse button to boost", width / 2, height - 140);
+    ctx.fillText("Eat food to grow longer", width / 2, height - 110);
 
-    // Start prompt
+    // Start prompt with pulsing effect
+    const pulseFactor = Math.sin(Date.now() / 500) * 0.2 + 1;
+    ctx.font = `bold ${32 * pulseFactor}px Arial`;
     ctx.fillStyle = "#88FF88";
-    ctx.font = "bold 32px Arial";
-    ctx.fillText("Click to Start", width / 2, height / 2 + 170);
+    ctx.shadowColor = "#33FF33";
+    ctx.shadowBlur = 10 * pulseFactor;
+    ctx.fillText("Click to Start", width / 2, height - 60);
+    ctx.shadowBlur = 0;
   };
 
   // Draw game over screen
@@ -1034,17 +1082,264 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   };
 
   return (
-    <canvas
-      ref={canvasRef}
-      width={width}
-      height={height}
-      style={{
-        border: "1px solid #333",
-        backgroundColor: "#000",
-        display: "block",
-        margin: "0 auto",
-      }}
-    />
+    <div style={{ position: "relative" }}>
+      <canvas
+        ref={canvasRef}
+        width={width}
+        height={height}
+        style={{
+          border: "1px solid #333",
+          backgroundColor: "#000",
+          display: "block",
+          margin: "0 auto",
+          position: "relative",
+          zIndex: 1,
+        }}
+      />
+
+      {/* 3D Cobra Snake inspired by the reference image */}
+      {gameState === GameState.START && (
+        <div
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            zIndex: 2,
+            pointerEvents: "none",
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            paddingBottom: "120px",
+          }}
+        >
+          <svg width="420" height="300" viewBox="0 0 420 300">
+            <defs>
+              <linearGradient
+                id="miyazakiGreen"
+                x1="0%"
+                y1="0%"
+                x2="0%"
+                y2="100%"
+              >
+                <stop offset="0%" stopColor="#88FF88" />
+                <stop offset="50%" stopColor="#33CC33" />
+                <stop offset="100%" stopColor="#008800" />
+              </linearGradient>
+
+              <linearGradient
+                id="miyazakiDarkGreen"
+                x1="0%"
+                y1="0%"
+                x2="0%"
+                y2="100%"
+              >
+                <stop offset="0%" stopColor="#44CC44" />
+                <stop offset="50%" stopColor="#009900" />
+                <stop offset="100%" stopColor="#006600" />
+              </linearGradient>
+
+              <linearGradient
+                id="miyazakiBelly"
+                x1="0%"
+                y1="0%"
+                x2="0%"
+                y2="100%"
+              >
+                <stop offset="0%" stopColor="#CCFFCC" />
+                <stop offset="100%" stopColor="#88DD88" />
+              </linearGradient>
+
+              <filter
+                id="miyazakiGlow"
+                x="-20%"
+                y="-20%"
+                width="140%"
+                height="140%"
+              >
+                <feGaussianBlur stdDeviation="3" result="blur" />
+                <feComposite in="SourceGraphic" in2="blur" operator="over" />
+              </filter>
+
+              <filter id="miyazakiShadow">
+                <feDropShadow
+                  dx="2"
+                  dy="4"
+                  stdDeviation="3"
+                  floodColor="#00440055"
+                />
+              </filter>
+            </defs>
+
+            {/* Miyazaki Streamline */}
+            <g
+              transform={`translate(${Math.sin(animationTime * 0.5) * 5}, ${
+                Math.cos(animationTime * 0.7) * 5
+              })`}
+              filter="url(#miyazakiShadow)"
+            >
+              {/* Snake body main part */}
+              <path
+                d={`M 60,${150 + Math.sin(animationTime) * 8} 
+                 C 100,${170 + Math.sin(animationTime * 1.2) * 5} 
+                   150,${130 + Math.cos(animationTime * 0.8) * 10} 
+                   200,${150 + Math.sin(animationTime * 0.9) * 8} 
+                   S 250,${180 + Math.cos(animationTime * 1.1) * 10} 
+                     300,${150 + Math.sin(animationTime * 1.3) * 7} 
+                     S 340,${130 + Math.cos(animationTime) * 8} 
+                       ${350 + Math.sin(animationTime * 0.7) * 8},${
+                  140 + Math.cos(animationTime * 0.5) * 5
+                }`}
+                fill="url(#miyazakiGreen)"
+                stroke="#005500"
+                strokeWidth="1.5"
+                strokeLinejoin="round"
+                strokeLinecap="round"
+              />
+
+              {/* Snake stomach */}
+              <path
+                d={`M 70,${153 + Math.sin(animationTime) * 8} 
+                 C 100,${173 + Math.sin(animationTime * 1.2) * 5} 
+                   150,${133 + Math.cos(animationTime * 0.8) * 10} 
+                   200,${153 + Math.sin(animationTime * 0.9) * 8} 
+                   S 250,${183 + Math.cos(animationTime * 1.1) * 10} 
+                     290,${153 + Math.sin(animationTime * 1.3) * 7}`}
+                fill="url(#miyazakiBelly)"
+                stroke="none"
+                opacity="0.8"
+              />
+
+              {/* 蛇身上的花纹 */}
+              <path
+                d={`M 120,${150 + Math.sin(animationTime * 1.1) * 7} 
+                 Q 135,${140 + Math.cos(animationTime * 0.9) * 5} 
+                   150,${145 + Math.sin(animationTime * 0.8) * 6}`}
+                fill="none"
+                stroke="#005500"
+                strokeWidth="1"
+                opacity="0.7"
+              />
+
+              <path
+                d={`M 180,${150 + Math.sin(animationTime * 0.9) * 8} 
+                 Q 195,${140 + Math.cos(animationTime * 1.1) * 5} 
+                   210,${155 + Math.sin(animationTime * 1.2) * 6}`}
+                fill="none"
+                stroke="#005500"
+                strokeWidth="1"
+                opacity="0.7"
+              />
+
+              <path
+                d={`M 240,${165 + Math.cos(animationTime * 1.1) * 10} 
+                 Q 255,${155 + Math.sin(animationTime * 0.8) * 4} 
+                   270,${160 + Math.cos(animationTime * 1.0) * 7}`}
+                fill="none"
+                stroke="#005500"
+                strokeWidth="1"
+                opacity="0.7"
+              />
+            </g>
+
+            {/* Snake head */}
+            <g
+              transform={`translate(${
+                350 + Math.sin(animationTime * 0.7) * 8
+              }, ${140 + Math.cos(animationTime * 0.5) * 5}) rotate(${
+                Math.sin(animationTime) * 15
+              })`}
+              filter="url(#miyazakiShadow)"
+            >
+              {/* Basic style of head */}
+              <path
+                d="M 0,0 C 10,-15 25,-20 40,-10 S 50,15 30,25 S 0,20 -10,10 S -10,-10 0,0"
+                fill="url(#miyazakiDarkGreen)"
+                stroke="#005500"
+                strokeWidth="1.5"
+                strokeLinejoin="round"
+              />
+
+              {/* Big eyes */}
+              <ellipse
+                cx="25"
+                cy="0"
+                rx="12"
+                ry="10"
+                fill="white"
+                stroke="#005500"
+                strokeWidth="0.5"
+              />
+              <ellipse cx="25" cy="0" rx="8" ry="8" fill="black" />
+              <circle cx="27" cy="-2" r="2" fill="white" />
+
+              <path
+                d="M 10,-5 C 15,-8 20,-8 25,-5"
+                fill="none"
+                stroke="#003300"
+                strokeWidth="1"
+              />
+              <path
+                d="M 5,10 C 10,15 20,15 25,10"
+                fill="none"
+                stroke="#005500"
+                strokeWidth="1"
+              />
+
+              <circle cx="38" cy="5" r="3" fill="#007700" />
+
+              <path
+                d={`M 35,10 
+                 Q ${45 + Math.sin(animationTime * 8) * 3},${
+                  10 + Math.cos(animationTime * 7) * 2
+                } 
+                   ${55 + Math.sin(animationTime * 10) * 5},${
+                  5 + Math.sin(animationTime * 9) * 4
+                }
+                 M ${52 + Math.sin(animationTime * 10) * 5},${
+                  5 + Math.sin(animationTime * 9) * 4
+                }
+                 L ${60 + Math.sin(animationTime * 12) * 4},${
+                  0 + Math.cos(animationTime * 11) * 3
+                }
+                 M ${52 + Math.sin(animationTime * 10) * 5},${
+                  5 + Math.sin(animationTime * 9) * 4
+                }
+                 L ${60 + Math.cos(animationTime * 12) * 4},${
+                  10 + Math.sin(animationTime * 11) * 3
+                }`}
+                stroke="#FF5555"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                fill="none"
+              />
+            </g>
+
+            {[...Array(6)].map((_, i) => (
+              <circle
+                key={i}
+                cx={100 + Math.random() * 200}
+                cy={200 + Math.random() * 50}
+                r={1 + Math.random() * 2}
+                fill="#AAFFAA"
+                opacity={0.3 + Math.random() * 0.3}
+                filter="url(#miyazakiGlow)"
+              >
+                <animate
+                  attributeName="opacity"
+                  values={`${0.3 + Math.random() * 0.3};${
+                    0.1 + Math.random() * 0.2
+                  };${0.3 + Math.random() * 0.3}`}
+                  dur={`${2 + Math.random() * 3}s`}
+                  repeatCount="indefinite"
+                />
+              </circle>
+            ))}
+          </svg>
+        </div>
+      )}
+    </div>
   );
 };
 
