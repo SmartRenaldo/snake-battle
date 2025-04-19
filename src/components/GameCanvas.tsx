@@ -32,6 +32,34 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   canvasRef,
   onTogglePlayPause,
 }) => {
+  // Add state for mobile detection
+  const [isMobile, setIsMobile] = useState<boolean>(false);
+
+  // Check if device is mobile on component mount
+  useEffect(() => {
+    const checkMobile = () => {
+      const userAgent = navigator.userAgent.toLowerCase();
+      const isMobileDevice =
+        /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(
+          userAgent
+        );
+      const isTouchScreen =
+        "ontouchstart" in window || navigator.maxTouchPoints > 0;
+      setIsMobile(
+        isMobileDevice || (isTouchScreen && window.innerWidth <= 1024)
+      );
+    };
+
+    checkMobile();
+
+    // Recheck on resize
+    window.addEventListener("resize", checkMobile);
+
+    return () => {
+      window.removeEventListener("resize", checkMobile);
+    };
+  }, []);
+
   const buttonRegion = useRef({
     x: 20,
     y: 70,
@@ -1009,48 +1037,64 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
 
   // Draw start screen
   const drawStartScreen = (ctx: CanvasRenderingContext2D) => {
-    // Semi-transparent overlay
-    ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
+    // Background
+    ctx.fillStyle = "#111111";
     ctx.fillRect(0, 0, width, height);
 
-    // Add a stylish gradient background
-    const gradient = ctx.createRadialGradient(
-      width / 2,
-      height / 2,
-      10,
-      width / 2,
-      height / 2,
-      width / 2
-    );
-    gradient.addColorStop(0, "rgba(0, 50, 0, 0.4)");
-    gradient.addColorStop(1, "rgba(0, 0, 0, 0)");
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, width, height);
+    // Add grid pattern
+    ctx.strokeStyle = "#222222";
+    ctx.lineWidth = 1;
 
-    // Title with glow effect
-    ctx.shadowColor = "#33FF33";
-    ctx.shadowBlur = 20;
+    // Draw vertical grid lines
+    for (let x = 0; x < width; x += 40) {
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, height);
+      ctx.stroke();
+    }
+
+    // Draw horizontal grid lines
+    for (let y = 0; y < height; y += 40) {
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(width, y);
+      ctx.stroke();
+    }
+
+    // Title
     ctx.fillStyle = "#FFFFFF";
     ctx.font = "bold 48px Arial";
     ctx.textAlign = "center";
     ctx.fillText("SNAKE BATTLE", width / 2, height / 2 - 150);
-    ctx.shadowBlur = 0;
 
-    // Instructions - positioned at the bottom
-    ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
-    ctx.font = "18px Arial";
-    ctx.fillText("Use mouse to control direction", width / 2, height - 170);
-    ctx.fillText("Hold left mouse button to boost", width / 2, height - 140);
+    // Instructions - with mobile check
+    ctx.font = "24px Arial";
+
+    if (isMobile) {
+      // Mobile-specific instructions
+      ctx.fillText(
+        "Use virtual joystick to control direction",
+        width / 2,
+        height - 170
+      );
+      ctx.fillText(
+        "Tap and hold lightning button to boost",
+        width / 2,
+        height - 140
+      );
+    } else {
+      // Desktop instructions
+      ctx.fillText("Use mouse to control direction", width / 2, height - 170);
+      ctx.fillText("Hold left mouse button to boost", width / 2, height - 140);
+    }
+
+    // Common instruction for both
     ctx.fillText("Eat food to grow longer", width / 2, height - 110);
 
-    // Start prompt with pulsing effect
-    const pulseFactor = Math.sin(Date.now() / 500) * 0.2 + 1;
-    ctx.font = `bold ${32 * pulseFactor}px Arial`;
+    // Start prompt
     ctx.fillStyle = "#88FF88";
-    ctx.shadowColor = "#33FF33";
-    ctx.shadowBlur = 10 * pulseFactor;
-    ctx.fillText("Click to Start", width / 2, height - 60);
-    ctx.shadowBlur = 0;
+    ctx.font = "bold 32px Arial";
+    ctx.fillText("Click to Start", width / 2, height - 50);
   };
 
   // Draw game over screen
@@ -1114,7 +1158,11 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
             paddingBottom: "120px",
           }}
         >
-          <svg width="420" height="300" viewBox="0 0 420 300">
+          <svg
+            width={isMobile ? "315" : "420"}
+            height={isMobile ? "225" : "300"}
+            viewBox="0 0 420 300"
+          >
             <defs>
               <linearGradient
                 id="miyazakiGreen"
