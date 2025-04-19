@@ -63,14 +63,24 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   const buttonRegion = useRef({
     x: 20,
     y: 70,
-    width: 40,
-    height: 40,
+    width: isMobile ? 60 : 40,
+    height: isMobile ? 60 : 40,
   });
+
+  useEffect(() => {
+    buttonRegion.current = {
+      x: 20,
+      y: 70,
+      width: isMobile ? 60 : 40,
+      height: isMobile ? 60 : 40,
+    };
+  }, [isMobile]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas || !onTogglePlayPause) return;
 
+    // For mouse clicks
     const handleClick = (event: MouseEvent) => {
       const rect = canvas.getBoundingClientRect();
       const x = event.clientX - rect.left;
@@ -88,37 +98,91 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       }
     };
 
+    // Add touch handling for mobile
+    const handleTouch = (event: TouchEvent) => {
+      if (event.touches.length === 0) return;
+
+      const touch = event.touches[0];
+      const rect = canvas.getBoundingClientRect();
+      const x = touch.clientX - rect.left;
+      const y = touch.clientY - rect.top;
+
+      // Check if the touch is within the button region
+      const button = buttonRegion.current;
+      if (
+        x >= button.x &&
+        x <= button.x + button.width &&
+        y >= button.y &&
+        y <= button.y + button.height
+      ) {
+        onTogglePlayPause();
+        event.preventDefault(); // Prevent scrolling or other default behaviors
+      }
+    };
+
     canvas.addEventListener("click", handleClick);
+    canvas.addEventListener("touchstart", handleTouch);
 
     return () => {
       canvas.removeEventListener("click", handleClick);
+      canvas.removeEventListener("touchstart", handleTouch);
     };
-  }, [canvasRef, onTogglePlayPause]);
+  }, [canvasRef, onTogglePlayPause, isMobile]);
 
   const drawPlayPauseButton = (ctx: CanvasRenderingContext2D) => {
     const button = buttonRegion.current;
     const isPlaying = gameState === GameState.PLAYING;
 
-    ctx.fillStyle = "rgba(0, 0, 0, 0.6)";
+    // Larger, more visible background for mobile
+    ctx.fillStyle = "rgba(0, 0, 0, 0.7)"; // Slightly darker for better visibility
     ctx.beginPath();
     ctx.roundRect(button.x, button.y, button.width, button.height, 5);
     ctx.fill();
 
-    ctx.strokeStyle = "#444";
-    ctx.lineWidth = 1;
+    // More visible border
+    ctx.strokeStyle = isMobile ? "#666" : "#444";
+    ctx.lineWidth = isMobile ? 2 : 1;
     ctx.stroke();
 
+    // Adjust icon size based on button size
+    const iconScale = isMobile ? 1.5 : 1;
     ctx.fillStyle = "#FFFFFF";
 
     if (isPlaying) {
-      ctx.fillRect(button.x + 12, button.y + 10, 5, 20);
-      ctx.fillRect(button.x + 24, button.y + 10, 5, 20);
+      // Pause icon - two rectangles
+      const barWidth = 5 * iconScale;
+      const barHeight = 20 * iconScale;
+      const barPadding = isMobile ? 15 : 10;
+
+      ctx.fillRect(
+        button.x + button.width / 2 - barWidth - barPadding / 2,
+        button.y + (button.height - barHeight) / 2,
+        barWidth,
+        barHeight
+      );
+      ctx.fillRect(
+        button.x + button.width / 2 + barPadding / 2,
+        button.y + (button.height - barHeight) / 2,
+        barWidth,
+        barHeight
+      );
     } else {
       // Play icon (triangle)
+      const triangleSize = isMobile ? 25 : 20;
+
       ctx.beginPath();
-      ctx.moveTo(button.x + 14, button.y + 10);
-      ctx.lineTo(button.x + 14, button.y + 30);
-      ctx.lineTo(button.x + 30, button.y + 20);
+      ctx.moveTo(
+        button.x + (button.width - triangleSize) / 2,
+        button.y + (button.height - triangleSize) / 2
+      );
+      ctx.lineTo(
+        button.x + (button.width - triangleSize) / 2,
+        button.y + (button.height + triangleSize) / 2
+      );
+      ctx.lineTo(
+        button.x + (button.width + triangleSize) / 2,
+        button.y + button.height / 2
+      );
       ctx.closePath();
       ctx.fill();
     }
