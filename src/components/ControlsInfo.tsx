@@ -9,20 +9,22 @@ interface ControlsInfoProps {
   onResume?: () => void;
 }
 
+// Side-effect decision logic is separated for testing
+export const shouldResumeGame = (state?: GameState): boolean =>
+  state === GameState.PAUSED;
+
 const ControlsInfo: React.FC<ControlsInfoProps> = ({
   onClose,
   gameState,
   onResume,
 }) => {
-  // Reference to the modal content
   const modalRef = useRef<HTMLDivElement>(null);
 
-  // Handle closing the modal
   const handleClose = () => {
     onClose();
 
     // If resume function is provided and game is paused, resume game
-    if (onResume && gameState === GameState.PAUSED) {
+    if (onResume && shouldResumeGame(gameState)) {
       onResume();
     }
   };
@@ -49,6 +51,7 @@ const ControlsInfo: React.FC<ControlsInfoProps> = ({
 
   return (
     <div
+      data-testid="modal-overlay"
       style={{
         position: "absolute",
         top: 0,
@@ -64,6 +67,7 @@ const ControlsInfo: React.FC<ControlsInfoProps> = ({
     >
       <div
         ref={modalRef}
+        data-testid="modal-content"
         style={{
           backgroundColor: "rgba(0, 0, 0, 0.9)",
           padding: "1rem",
@@ -88,10 +92,11 @@ const ControlsInfo: React.FC<ControlsInfoProps> = ({
           Game Controls & Rules
         </h2>
 
-        {/* Two-column layout for compactness */}
+        {/* Left and right columns */}
         <div style={{ display: "flex", flexWrap: "wrap", gap: "1rem" }}>
           {/* Left column */}
           <div style={{ flex: "1 1 280px" }}>
+            {/* Movement Controls */}
             <div style={{ marginBottom: "0.8rem" }}>
               <h3
                 style={{
@@ -149,6 +154,7 @@ const ControlsInfo: React.FC<ControlsInfoProps> = ({
               </ul>
             </div>
 
+            {/* Dynamic Width */}
             <div style={{ marginBottom: "0.8rem" }}>
               <h3
                 style={{
@@ -179,6 +185,7 @@ const ControlsInfo: React.FC<ControlsInfoProps> = ({
 
           {/* Right column */}
           <div style={{ flex: "1 1 280px" }}>
+            {/* Scoring */}
             <div style={{ marginBottom: "0.8rem" }}>
               <h3
                 style={{
@@ -210,6 +217,7 @@ const ControlsInfo: React.FC<ControlsInfoProps> = ({
               </ul>
             </div>
 
+            {/* Game Rules */}
             <div style={{ marginBottom: "0.8rem" }}>
               <h3
                 style={{
@@ -243,6 +251,7 @@ const ControlsInfo: React.FC<ControlsInfoProps> = ({
               </ul>
             </div>
 
+            {/* Keyboard Shortcuts */}
             <div style={{ marginBottom: "0.8rem" }}>
               <h3
                 style={{
@@ -275,8 +284,10 @@ const ControlsInfo: React.FC<ControlsInfoProps> = ({
           </div>
         </div>
 
+        {/* Close button */}
         <div style={{ textAlign: "center", marginTop: "1rem" }}>
           <button
+            data-testid="close-button"
             onClick={handleClose}
             style={{
               backgroundColor: "#00AA00",
